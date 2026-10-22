@@ -1,0 +1,16 @@
+# Secrets and local settings: NEVER commit
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node (for later)
+node_modules/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
