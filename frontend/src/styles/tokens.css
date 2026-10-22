@@ -1,0 +1,9 @@
+/* Design tokens. Feature code uses these through Tailwind classes, never raw hex values. */
+@theme {
+  --color-outcome-continue: #15803d;
+  --color-outcome-continue-bg: #dcfce7;
+  --color-outcome-block: #b91c1c;
+  --color-outcome-block-bg: #fee2e2;
+  --color-outcome-review: #b45309;
+  --color-outcome-review-bg: #fef3c7;
+}
