@@ -66,6 +66,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-05 | Maira Qazi | Simplified `docs/POLICY_RULES.md` (same rules and cases, plainer wording, fewer open questions) |
 | 2026-11-05 | Maira Qazi | Added `docs/POLICY_RULES.md`: Q-007 policy rules draft (PROPOSED, for review) |
 | 2026-11-05 | Claude (via Haya) | Audit; added `CLAUDE.md` and `docs/` set |
 | 2026-10-22 | HayaAmir05 | Merged PR #1: frontend scaffold (Vite, React, TS, Tailwind, tooling, `PolicyOutcomeBadge`) |
