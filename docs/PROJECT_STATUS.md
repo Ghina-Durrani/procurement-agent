@@ -46,7 +46,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Standard error envelope + CORS (Q-002, Q-003) | _assign_ | Not started | Do before the first feature endpoint |
 | Fix `requirements.txt` (D-025) | _assign_ | Not started | |
 | Schema design (Q-006) | _assign_ | Not started | Next planning step |
-| Policy rules design (Q-007) | _assign_ | Not started | Next planning step |
+| Policy rules design (Q-007) | Maira (PROPOSED) | Draft ready for team review | `docs/POLICY_RULES.md`; Part B (engine code) waits for approval |
 | Extraction agent (Q-008, then implementation) | _assign_ | Not started | After schema and policy rules |
 
 Owners are not recorded in the repo; fill them in.
@@ -66,6 +66,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-05 | Maira Qazi | Added `docs/POLICY_RULES.md`: Q-007 policy rules draft (PROPOSED, for review) |
 | 2026-11-05 | Claude (via Haya) | Audit; added `CLAUDE.md` and `docs/` set |
 | 2026-10-22 | HayaAmir05 | Merged PR #1: frontend scaffold (Vite, React, TS, Tailwind, tooling, `PolicyOutcomeBadge`) |
 | 2026-10-22 | Ghina-Durrani | Backend foundation (FastAPI, settings, health tests, Compose, `.env.example`) |

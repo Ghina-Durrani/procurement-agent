@@ -50,7 +50,7 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | Q-004 | Authentication design (D-011) and role model | Any protected endpoint |
 | Q-005 | Pin the Python version (and Node version) the team uses; add to the Handbook | Reproducible setup |
 | Q-006 | Database schema: entities, columns, relationships, tenancy | Database tasks |
-| Q-007 | Initial policy rules: rule types, thresholds (sample/demo values), precedence | Policy engine |
+| Q-007 | Initial policy rules: rule types, thresholds (sample/demo values), precedence. **Draft for review:** `docs/POLICY_RULES.md` (PROPOSED) | Policy engine |
 | Q-008 | LLM provider and model (D-008) | Extraction agent |
 | Q-009 | Triage 7 moderate `npm audit` findings | Security hygiene |
 
@@ -60,3 +60,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 |---|---|---|
 | 2026-11-05 | Created from repo audit at commit `8f5b114`; added D-016…D-027, Q-001…Q-009 | Claude (via Haya) |
 | 2026-11-05 | Added D-028…D-031 (urgency detection, clarification loop, English only, thresholds OPEN) to align with Module 1 requirements agreed by the project owner | Claude (via Ghina) |
+| 2026-11-05 | Q-007 draft added in `docs/POLICY_RULES.md` (rules POL-001…POL-009, POL-900; all PROPOSED, demo values OPEN) | Maira Qazi |
