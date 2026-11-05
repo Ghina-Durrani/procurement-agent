@@ -35,6 +35,10 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-025 | Split `requirements.txt` (runtime) / `requirements-dev.txt`, saved as UTF-8, direct deps only | PROPOSED | Current file is a UTF-16 `pip freeze` |
 | D-026 | Add `ruff` (+ `mypy`) for the backend | PROPOSED | |
 | D-027 | Add minimal CI (backend pytest; frontend typecheck/lint/test/build) | PROPOSED | Useful because of D-022 |
+| D-028 | Urgency detection: the LLM finds urgency evidence (quoted text); deterministic code computes the proposed priority (normal / high priority / emergency). Priority is a proposal only and never approves or bypasses policy | DECIDED | Agreed by the project owner in chat. Consistent with D-007. Exact enum strings to be fixed with the schema (Q-006) |
+| D-029 | Clarification loop: the system asks the requester about missing or unclear details, maximum 2 rounds; after that, or on low-confidence/failed extraction, route to a human (fail closed) | DECIDED | Agreed by the project owner in chat. The round limit of 2 is to be confirmed in development (D-031) |
+| D-030 | Input language for Module 1 is English only (no Roman Urdu); synthetic data only | DECIDED | Agreed by the project owner in chat. Replaces the earlier Roman Urdu idea |
+| D-031 | Urgency thresholds (working values: 7 days and 3 days to deadline) and the clarification round limit (working value: 2) | OPEN | To be confirmed during development, not with the supervisor now. Do not treat the working values as final |
 
 ## Open questions (need a person to decide)
 
@@ -55,3 +59,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | Date | Change | By |
 |---|---|---|
 | 2026-11-05 | Created from repo audit at commit `8f5b114`; added D-016…D-027, Q-001…Q-009 | Claude (via Haya) |
+| 2026-11-05 | Added D-028…D-031 (urgency detection, clarification loop, English only, thresholds OPEN) to align with Module 1 requirements agreed by the project owner | Claude (via Ghina) |

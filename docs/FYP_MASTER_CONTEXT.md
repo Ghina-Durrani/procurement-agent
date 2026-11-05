@@ -28,12 +28,14 @@ Different organizations configure different rules. Each organization has isolate
 
 1. Accept a request, assign a unique ID, preserve the original text unchanged.
 2. **Extraction (LLM)** → structured fields, with source evidence where feasible.
-3. **Validation** (code) → missing, invalid, ambiguous, or conflicting information.
-4. **Policy engine** (code) → apply configurable rules.
-5. Outcome is exactly one of: `CONTINUE`, `BLOCK`, `HUMAN_REVIEW`.
-6. Ask for clarification or route to an authorized reviewer when needed.
-7. Record request, extraction, policy version, triggered rules, outcome, reviewer actions, timestamps.
-8. Present a recommendation / next step. No real purchases or payments.
+3. **Urgency detection** → the LLM finds urgency *evidence* in the message (quoted text); **code** computes the proposed priority (normal / high priority / emergency) from that evidence and the delivery deadline. The priority is a proposal only; it never approves or bypasses anything (see §4).
+4. **Clarification loop** → if required details are missing or unclear, the system asks the requester, for at most **2 rounds**. If the details are still unclear after 2 rounds, or extraction is low-confidence or fails, the request goes to a human (fail closed).
+5. **Validation** (code) → missing, invalid, ambiguous, or conflicting information.
+6. **Policy engine** (code) → apply configurable rules.
+7. Outcome is exactly one of: `CONTINUE`, `BLOCK`, `HUMAN_REVIEW`. (This is separate from priority.)
+8. Route to an authorized reviewer when needed (a reviewer can also request clarification).
+9. Record request, extraction, urgency evidence, proposed priority, clarification rounds, policy version, triggered rules, outcome, reviewer actions, timestamps.
+10. Present a recommendation / next step. No real purchases or payments.
 
 ## 4. Design principles (CONFIRMED)
 
@@ -63,11 +65,16 @@ Different organizations configure different rules. Each organization has isolate
 | Rule ID | Stable identifier of a policy rule, returned with every outcome |
 | Policy version | Snapshot of rules used for an evaluation, stored so decisions are reproducible |
 | Audit event | Append-only record of who/what did what, when, and why |
+| Urgency evidence | Exact text from the request that suggests urgency, found by the LLM and stored with the extraction |
+| Priority | Proposed level computed by code from urgency evidence and deadline: normal / high priority / emergency. A proposal only; not a policy outcome and not an approval |
+| Clarification round | One cycle of the system asking the requester for missing or unclear details and receiving a reply. Maximum 2 rounds per request |
 
 ## 6. Scope
 
 **Core (FYP-I target, December 2026) — one reliable vertical slice:**
-submit free-text request → store original → extract → validate → policy outcome with rule IDs and reasons → review queue (approve / reject / request clarification) → audit history → minimal React UI → small labelled evaluation set comparing System A vs System B.
+submit free-text request → store original → extract → detect urgency and clarify with requester (max 2 rounds) → validate → policy outcome with rule IDs and reasons → review queue (approve / reject / request clarification) → audit history → minimal React UI → small labelled evaluation set comparing System A vs System B.
+
+**Module 1 additions (DECIDED, agreed by the project owner in chat; see `DECISIONS.md` D-028 to D-030):** urgency detection, the clarification loop, and English-only input are part of Module 1. The urgency thresholds are still OPEN (D-031).
 
 **Deferred unless the core is stable and scope is re-confirmed:** real WhatsApp/email integration; automatic supplier outreach/RFQ sending; PDF/spreadsheet/image quote extraction; supplier discovery/ranking and quote comparison; Finance Agent integration; purchase-order generation / ERP; production-grade multi-tenant administration; RAG/vector DB; fine-tuning; multi-agent frameworks; analytics dashboards.
 
@@ -85,7 +92,7 @@ Keep these three things distinct, in code and in the database:
 
 Synthetic data is acceptable; document its limitations. BPI Challenge 2019 is a purchase-order event log: inspect its real schema before using it, and do not assume it has informal text or policy labels. Other background sources: Open Contracting Data Registry, Global Public Procurement Database, PPRA rules (context only).
 
-Likely extraction fields: item description, quantity, unit, specifications, estimated unit price and total, currency, delivery deadline/location, optional urgency, business justification, preferred supplier, mentioned supplier restrictions, missing fields, ambiguities, conflicts, source evidence.
+Likely extraction fields: item description, quantity, unit, specifications, estimated unit price and total, currency, delivery deadline/location, urgency evidence (the proposed priority is computed by code, not extracted), business justification, preferred supplier, mentioned supplier restrictions, missing fields, ambiguities, conflicts, source evidence.
 
 ## 8. Requirements summary
 
@@ -96,5 +103,7 @@ Likely extraction fields: item description, quantity, unit, specifications, esti
 ## 9. Core entities (design target, not yet implemented)
 
 Organization, User, ProcurementRequest, ExtractedRequestDetails, PolicyRule, PolicyEvaluation, Approval, AuditEvent. Optional only if in scope: Supplier, Quotation, QuotationLineItem, RequestLineItem.
+
+Module 1 also needs to store clarification messages (what the system asked, what the requester replied, round number) and the urgency evidence and proposed priority for each request. Whether these become their own tables or columns is part of the pending schema decision.
 
 Typed columns for important fields (quantity, currency, deadlines, statuses, relationships); JSON only for flexible supplemental fields. The exact schema is a pending decision (see `PROJECT_STATUS.md`).

@@ -38,6 +38,8 @@ backend/app/
 ├── services/
 │   ├── intake/          # request lifecycle
 │   ├── extraction/      # LLM adapter, prompts, parsing, validation
+│   ├── urgency/         # PROPOSED: urgency evidence -> proposed priority (pure code, see D-028)
+│   ├── clarification/   # PROPOSED: ask-the-requester loop, max rounds (see D-029)
 │   ├── review/          # approve / reject / clarify workflow
 │   ├── audit/           # append-only audit events
 │   └── evaluation/      # System A vs B runner and metrics (never used at runtime)
