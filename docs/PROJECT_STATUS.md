@@ -11,7 +11,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 1 | Repository and environment audit | Done | This document |
 | 2 | Environment baseline | Partly done | Backend app starts and `/health` test passes. Frontend typecheck/lint/test/build pass. `docker-compose.yml` for PostgreSQL exists but was not verified here. **Backend ↔ database connection not done** |
 | 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | No DB layer, models, or routes yet |
-| 4 | Deterministic policy engine with tests | Not started | |
+| 4 | Deterministic policy engine with tests | Done | Engine and 75 tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036). Calling it from the workflow comes with the service layer |
 | 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Not started | LLM provider OPEN (D-008) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | Only a placeholder page and `PolicyOutcomeBadge` exist |
@@ -46,7 +46,8 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Standard error envelope + CORS (Q-002, Q-003) | _assign_ | Not started | Do before the first feature endpoint |
 | Fix `requirements.txt` (D-025) | _assign_ | Not started | |
 | Schema design (Q-006) | _assign_ | Not started | Next planning step |
-| Policy rules design (Q-007) | Maira (PROPOSED) | Draft ready for team review | `docs/POLICY_RULES.md`; Part B (engine code) waits for approval |
+| Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
+| Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
 | Extraction agent (Q-008, then implementation) | _assign_ | Not started | After schema and policy rules |
 
 Owners are not recorded in the repo; fill them in.
@@ -66,6 +67,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-08 | Maira Qazi | Added policy engine (`backend/app/policy/`) with 75 tests covering the 20 example cases, edge cases and fail-closed behaviour; recorded the approved rules (D-032 to D-036) and closed Q-007 |
 | 2026-11-05 | Maira Qazi | Simplified `docs/POLICY_RULES.md` (same rules and cases, plainer wording, fewer open questions) |
 | 2026-11-05 | Maira Qazi | Added `docs/POLICY_RULES.md`: Q-007 policy rules draft (PROPOSED, for review) |
 | 2026-11-05 | Claude (via Haya) | Audit; added `CLAUDE.md` and `docs/` set |

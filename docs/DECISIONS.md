@@ -39,6 +39,11 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-029 | Clarification loop: the system asks the requester about missing or unclear details, maximum 2 rounds; after that, or on low-confidence/failed extraction, route to a human (fail closed) | DECIDED | Agreed by the project owner in chat. The round limit of 2 is to be confirmed in development (D-031) |
 | D-030 | Input language for Module 1 is English only (no Roman Urdu); synthetic data only | DECIDED | Agreed by the project owner in chat. Replaces the earlier Roman Urdu idea |
 | D-031 | Urgency thresholds (working values: 7 days and 3 days to deadline) and the clarification round limit (working value: 2) | OPEN | To be confirmed during development, not with the supervisor now. Do not treat the working values as final |
+| D-032 | Policy rules POL-001 to POL-009 plus POL-900 (fail closed), the three checkpoints (`INTAKE`, `PRE_PO`, `APPROVAL`) and precedence (`BLOCK` > `HUMAN_REVIEW` > `CONTINUE`), as defined in `docs/POLICY_RULES.md` | DECIDED | Approved by the team on 2026-11-08. Answers Q-007. Implemented in `backend/app/policy/`. All amounts and lists remain demo values (OPEN) |
+| D-033 | Insufficient budget (POL-007) returns `BLOCK` | DECIDED | Decided by Maira (policy engine owner), 2026-11-08 |
+| D-034 | Emergencies do not waive the quotation rule (POL-003): too few quotes gives `HUMAN_REVIEW` by a Procurement Officer | DECIDED | Decided by Maira (policy engine owner), 2026-11-08. Consistent with D-007 and D-028 |
+| D-035 | Extraction reliability is judged by `extraction_status` (schema validation result), not by a model-reported confidence score | DECIDED | Decided by Maira (policy engine owner), 2026-11-08. This is how "low-confidence" in D-029 is measured by the policy engine |
+| D-036 | Quantity is a required detail for every request, including services | DECIDED | Decided by Maira (policy engine owner), 2026-11-08 |
 
 ## Open questions (need a person to decide)
 
@@ -50,7 +55,6 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | Q-004 | Authentication design (D-011) and role model | Any protected endpoint |
 | Q-005 | Pin the Python version (and Node version) the team uses; add to the Handbook | Reproducible setup |
 | Q-006 | Database schema: entities, columns, relationships, tenancy | Database tasks |
-| Q-007 | Initial policy rules: rule types, thresholds (sample/demo values), precedence. **Draft for review:** `docs/POLICY_RULES.md` (PROPOSED) | Policy engine |
 | Q-008 | LLM provider and model (D-008) | Extraction agent |
 | Q-009 | Triage 7 moderate `npm audit` findings | Security hygiene |
 
@@ -61,3 +65,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | 2026-11-05 | Created from repo audit at commit `8f5b114`; added D-016…D-027, Q-001…Q-009 | Claude (via Haya) |
 | 2026-11-05 | Added D-028…D-031 (urgency detection, clarification loop, English only, thresholds OPEN) to align with Module 1 requirements agreed by the project owner | Claude (via Ghina) |
 | 2026-11-05 | Q-007 draft added in `docs/POLICY_RULES.md` (rules POL-001…POL-009, POL-900; all PROPOSED, demo values OPEN) | Maira Qazi |
+| 2026-11-08 | Policy rules approved: added D-032…D-036, closed Q-007 | Maira Qazi |

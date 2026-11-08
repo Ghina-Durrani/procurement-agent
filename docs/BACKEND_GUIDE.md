@@ -8,7 +8,8 @@ Python + FastAPI modular monolith. Read `ENGINEERING_HANDBOOK.md` first. Labels:
 - `backend/app/config.py`: `Settings` (pydantic-settings), `get_settings()` cached with `lru_cache`. Secrets typed as `SecretStr`. Reads `../.env` (so run from `backend/`).
 - `backend/tests/test_health.py`: 3 tests (health, docs hidden in production, secrets not printed). All pass.
 - Installed libraries: FastAPI 0.159, Pydantic 2.14, pydantic-settings, Uvicorn, pytest, httpx, python-dotenv.
-- **Not present yet:** database layer (no SQLAlchemy, no driver, no Alembic), routers, models, services, auth, CORS, LLM adapter, policy engine, logging setup.
+- **Not present yet:** database layer (no SQLAlchemy, no driver, no Alembic), routers, models, services, auth, CORS, LLM adapter, logging setup.
+- **Policy engine (added 2026-11-08):** `backend/app/policy/` (`types.py`, `rules.py`, `engine.py`), tests in `backend/tests/policy/`. Rules are defined in `docs/POLICY_RULES.md` (approved, D-032).
 
 ## 2. Established patterns — follow these exactly
 
@@ -84,7 +85,7 @@ backend/tests/
 - `llm_api_key` comes from `Settings`; never log prompts containing sensitive text beyond what the audit design allows.
 
 **Policy engine**
-- Input: a typed, validated extraction plus the organization's rule set (and version). Output: a `PolicyDecision` with `outcome` (`CONTINUE` | `BLOCK` | `HUMAN_REVIEW`), `matched_rule_ids`, human-readable `reasons`, and `policy_version`.
+- Input: a typed, validated extraction plus the organization's rule set (and version). Output: a `PolicyResult` with `outcome` (`CONTINUE` | `BLOCK` | `HUMAN_REVIEW`), `triggered_rules` (each with `rule_id`, its own outcome, a human-readable `reason` and an optional `required_approver_role`), `required_approver_roles`, and `policy_version`. Call it as `app.policy.evaluate(policy_input, config)`.
 - Precedence is explicit and documented: `BLOCK` > `HUMAN_REVIEW` > `CONTINUE`. No rule matched means `CONTINUE` only when required fields are present and valid.
 - Unknown rule type, missing data, or an internal error ⇒ `HUMAN_REVIEW` (fail closed), never `CONTINUE`.
 - Rule thresholds are configuration (data), not constants in code. Sample/demo values must be labelled as such.

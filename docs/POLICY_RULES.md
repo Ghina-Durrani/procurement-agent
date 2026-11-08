@@ -1,6 +1,6 @@
-# Policy Rules (draft)
+# Policy Rules
 
-**Status: PROPOSED.** Draft for team review; nothing here is final until Ghina and Haya agree. All amounts are demo values, not real company limits.
+**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). All amounts and lists are still demo values (OPEN), not real company limits.
 
 **Author:** Maira · **Created:** 2026-11-05 · **Answers:** Q-007 in `DECISIONS.md`
 
@@ -42,6 +42,8 @@ The engine does not collect any of this itself. Each item is given to it by anot
 
 | Field | What it means | Example | Who provides it |
 |---|---|---|---|
+| `request_id` | ID of this request | UUID | Request record |
+| `organization_id` | Which company the request belongs to (must match the settings) | UUID | Login system (never from the form) |
 | `checkpoint` | Which moment this is (section 3) | `INTAKE` | Workflow |
 | `estimated_total` | Total amount of the request (or of the chosen quotation at `PRE_PO`) | `120000.00` | AI reading the message / quotation |
 | `currency` | Currency of the amount | `PKR` | AI reading the message / quotation |
@@ -136,7 +138,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
   - the currency is not PKR
   - the amount is zero or negative
   - information a rule needs is missing (and the rule does not say what to do without it)
-  - the settings are missing or broken, or a rule crashes
+  - the settings are missing or broken, belong to a different company, or a rule crashes
 - **Reason shown:** names the problem, e.g. "Currency 'USD' is not accepted."
 - **Based on:** the project rule "fail closed": never continue when unsure.
 
@@ -185,14 +187,14 @@ These become the tests when the rules are written in code.
 | C19 | AI failed to read the message | `HUMAN_REVIEW` | POL-900 | Procurement Officer |
 | C20 | requester tries to approve own request | `BLOCK` | POL-009 | none |
 
-## 8. Questions for the team
+## 8. Decisions on the earlier open questions
 
-1. **Not enough budget (POL-007):** `BLOCK` (this draft) or `HUMAN_REVIEW` so a budget transfer can be considered?
-2. **Emergencies and quotes:** real policies often let emergencies skip the 3-quote rule if the reason is recorded later. This draft does not allow that. Keep it strict?
-3. **AI reliability:** the first brief suggested an AI "confidence" score. Project docs say that score cannot be trusted unless tested, so this draft only checks whether the AI's output passed validation (`extraction_status`). Agreed?
-4. **Required details:** is quantity required for services (e.g. a one-off repair)?
+1. **Not enough budget (POL-007):** `BLOCK`. (D-033)
+2. **Emergencies and quotes:** an emergency does not skip the quotation rule. Too few quotes still goes to `HUMAN_REVIEW` by a Procurement Officer, who sees the quotation(s) received and records why. (D-034)
+3. **AI reliability:** judged by `extraction_status` (did the AI's output pass validation), not by a confidence score the AI reports about itself. (D-035)
+4. **Required details:** quantity is required for every request, including services. (D-036)
 
-Things that depend on other work (no decision needed from this document): exact value names like `HIGH_PRIORITY` will follow the database design (Q-006); role names will follow the login/roles design (Q-004).
+Still depending on other work: exact value names like `HIGH_PRIORITY` will follow the database design (Q-006); role names will follow the login/roles design (Q-004).
 
 ## 9. Sources
 
