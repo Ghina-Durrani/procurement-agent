@@ -12,7 +12,8 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-002 | React + TypeScript + Vite frontend | DECIDED · IN REPO | React 19, Vite 8, TS strict |
 | D-003 | PostgreSQL relational database | DECIDED | Container is IN REPO (Postgres 16) |
 | D-004 | Docker Compose for local PostgreSQL only | DECIDED · IN REPO | API and frontend run on the host. Named volume `pgdata`, healthcheck, host port `127.0.0.1:5433` |
-| D-005 | SQLAlchemy 2.x + Alembic; psycopg 3 driver | PROPOSED | Not installed yet. Needed for the database-connection task |
+| D-005 | SQLAlchemy 2.x + psycopg 3 driver | DECIDED · IN REPO | SQLAlchemy 2.1, psycopg 3.3. Connection layer is `backend/app/db/session.py` |
+| D-005b | Alembic for migrations | PROPOSED | Not installed yet. Install it with the first table (CLAUDE.md rule 8) |
 | D-006 | Modular monolith, no microservices | DECIDED | |
 | D-007 | Deterministic policy engine separate from the LLM | CONFIRMED | Core of the research design |
 | D-008 | LLM provider / model | OPEN | Behind a provider-agnostic adapter; compare cost, structured output, latency, data policy |
@@ -22,7 +23,7 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-012 | Hosting / deployment | OPEN | Local-first demo |
 | D-013 | Exact FYP-I feature boundary | PROPOSED | Core slice in `FYP_MASTER_CONTEXT.md` §6; needs supervisor confirmation (Q-001) |
 | D-014 | Evaluation benchmark: synthetic, labelled | PROPOSED | Inspect BPI 2019 schema first; keep held-out test set separate |
-| D-015 | UI library | PARTLY RESOLVED | Tailwind 4 chosen (D-016). Primitive library for `components/ui` still OPEN |
+| D-015 | UI library: shadcn/ui (style `radix-nova`, neutral base, Radix primitives, sonner toasts, lucide icons), with components copied into `src/components/ui/` | DECIDED · IN REPO | Merged 2026-11-10. `components/ui` is excluded from lint and format (generated code). The outcome colours stay in `styles/tokens.css` (D-016) |
 | D-016 | Tailwind CSS 4 with design tokens in `styles/tokens.css` | DECIDED · IN REPO | No raw hex in components |
 | D-017 | Frontend libraries: TanStack Query, React Hook Form + zod, react-router, lucide-react, class-variance-authority | DECIDED · installed; usage patterns PROPOSED | Not yet used by any feature |
 | D-018 | Frontend tests: Vitest + React Testing Library + jest-dom + MSW | DECIDED · IN REPO | MSW handlers not written yet |
@@ -32,7 +33,7 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-022 | Team commits directly to `main`; no feature branches | DECIDED | PR #1 was an exception. Compensate with local checks; see D-027 |
 | D-023 | API conventions (Handbook §3): `/api/v1`, snake_case, uppercase enums, decimal-string money, UTC ISO timestamps, one error envelope | PROPOSED | Approve before the first feature endpoint |
 | D-024 | Backend layout and dependency direction (Backend Guide §3) | PROPOSED | `policy/` has no I/O and no LLM imports |
-| D-025 | Split `requirements.txt` (runtime) / `requirements-dev.txt`, saved as UTF-8, direct deps only | PROPOSED | Current file is a UTF-16 `pip freeze` |
+| D-025 | Split `requirements.txt` (runtime) / `requirements-dev.txt`, saved as UTF-8, direct deps only | PROPOSED, partly done | The file is now UTF-8. It is still one full `pip freeze`; the split is not done |
 | D-026 | Add `ruff` (+ `mypy`) for the backend | PROPOSED | |
 | D-027 | Add minimal CI (backend pytest; frontend typecheck/lint/test/build) | PROPOSED | Useful because of D-022 |
 | D-028 | Urgency detection: the LLM finds urgency evidence (quoted text); deterministic code computes the proposed priority (normal / high priority / emergency). Priority is a proposal only and never approves or bypasses policy | DECIDED | Agreed by the project owner in chat. Consistent with D-007. Exact enum strings to be fixed with the schema (Q-006) |
@@ -66,3 +67,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | 2026-11-05 | Added D-028…D-031 (urgency detection, clarification loop, English only, thresholds OPEN) to align with Module 1 requirements agreed by the project owner | Claude (via Ghina) |
 | 2026-11-05 | Q-007 draft added in `docs/POLICY_RULES.md` (rules POL-001…POL-009, POL-900; all PROPOSED, demo values OPEN) | Maira Qazi |
 | 2026-11-08 | Policy rules approved: added D-032…D-036, closed Q-007 | Maira Qazi |
+| 2026-11-10 | Merged shadcn/ui and the database layer: D-005 split into D-005 (DECIDED · IN REPO) and D-005b (Alembic, PROPOSED); D-015 resolved (shadcn/ui); D-025 partly done | Claude (via Haya) |

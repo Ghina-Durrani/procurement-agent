@@ -2,13 +2,14 @@
 
 React + TypeScript + Vite. Read `ENGINEERING_HANDBOOK.md` first. Labels: `CLAUDE.md` §6.
 
-## 1. What exists today (IN REPO, verified 2026-11-05 at commit `8f5b114`)
+## 1. What exists today (IN REPO, verified 2026-11-10 after merging `feat/frontend-shadcn-base`)
 
 - Vite 8, React 19, TypeScript (strict), Tailwind CSS 4 (via `@tailwindcss/vite`), `@` → `src/` alias.
-- Installed libraries: `@tanstack/react-query`, `react-router`, `react-hook-form` + `@hookform/resolvers` + `zod`, `lucide-react`, `class-variance-authority`, `clsx` + `tailwind-merge`.
+- Installed libraries: `@tanstack/react-query`, `react-router`, `react-hook-form` + `@hookform/resolvers` + `zod`, `lucide-react`, `class-variance-authority`, `clsx` + `tailwind-merge`, and for shadcn/ui: `radix-ui`, `sonner`, `next-themes`, `tw-animate-css`, `@fontsource-variable/geist`, `shadcn` and `cn`.
+- **shadcn/ui (D-015):** base components are in `src/components/ui/` (badge, button, card, dialog, input, label, select, skeleton, sonner, table, textarea). Add new ones with the shadcn CLI (`components.json` is in `frontend/`), not by hand. Do not edit generated files without a reason. Feature code imports them as `@/components/ui/button`. In your own code, import `cn` from `@/lib/utils`; the generated files import it from the `cn` package (the official shadcn-ui one), which `lib/utils.ts` re-exports.
 - Tooling: ESLint (flat config, with strict custom rules), Prettier, Husky + lint-staged pre-commit hook, Vitest + React Testing Library + jest-dom + MSW (installed, no handlers written yet).
 - Code: `App.tsx` (placeholder), `components/domain/PolicyOutcomeBadge.tsx` (+ test), `lib/api-client.ts`, `lib/utils.ts` (`cn`), `styles/tokens.css`, `test/setup.ts`.
-- **Not present yet:** any feature folder, router setup, React Query provider, forms, MSW handlers, `src/types/api.generated.ts` (created by `npm run gen:api`), `src/components/ui`.
+- **Not present yet:** any feature folder, router setup, React Query provider, forms, MSW handlers, `src/types/api.generated.ts` (created by `npm run gen:api`).
 - Libraries being installed does not mean they are wired up. The patterns below for them are PROPOSED until a first feature uses them.
 
 ## 2. Rules enforced by tooling (IN REPO) — do not work around them
