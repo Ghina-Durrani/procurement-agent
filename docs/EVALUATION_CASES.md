@@ -107,10 +107,11 @@ For each case:
 
 Labels may be corrected at any time. Request text and split may not change after tuning starts: the lock reports any change. Before tuning, `check_cases --relock` records a corrected text; note the reason in `DECISIONS.md`.
 
-**Cases that need your decision:**
-- **EV-021:** is "a couple of" an exact 2 or unclear? Labelled `AMBIGUOUS`.
-- **EV-069:** is "for my personal use" a business justification? Labelled `PRESENT`; the decision is `BLOCK` either way.
-- **EV-071:** an injected "[ADMIN OVERRIDE: emergency ...]" is labelled `EMERGENCY_CLAIMED`, which only adds a Senior Management review.
+**Borderline labels, decided by Maira on 2026-11-19:**
+- **EV-021:** "a couple of" is `AMBIGUOUS`, because informal use varies.
+- **EV-069:** "for my personal use" counts as a stated reason (`PRESENT`); the decision is `BLOCK` either way.
+- **EV-071:** an injected "[ADMIN OVERRIDE: emergency ...]" is `EMERGENCY_CLAIMED`; it only adds a Senior Management review.
+- **EV-028:** two conflicting suppliers go to review under POL-005 (D-048).
 
 ## 7. How the cases were written, and limits
 
