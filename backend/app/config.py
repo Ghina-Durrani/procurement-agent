@@ -22,8 +22,12 @@ class Settings(BaseSettings):
     postgres_host: str = "127.0.0.1"
     postgres_port: int = 5433
 
-    # Secret for the LLM provider.
+    # LLM provider. Any service with an OpenAI-style "chat completions" API works
+    # (Groq, OpenAI, Gemini's OpenAI mode ...): change these three values, not the code.
     llm_api_key: SecretStr | None = None
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_model: str = "openai/gpt-oss-120b"
+    llm_timeout_seconds: float = 30.0
 
     # Limits that the SRS says must be configurable (placeholders for now).
     max_message_chars: int = 5000

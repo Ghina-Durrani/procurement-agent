@@ -16,7 +16,8 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-005b | Alembic for migrations | PROPOSED | Not installed yet. Install it with the first table (CLAUDE.md rule 8) |
 | D-006 | Modular monolith, no microservices | DECIDED | |
 | D-007 | Deterministic policy engine separate from the LLM | CONFIRMED | Core of the research design |
-| D-008 | LLM provider / model | OPEN | Behind a provider-agnostic adapter; compare cost, structured output, latency, data policy |
+| D-008 | LLM provider / model: Groq free tier, model `openai/gpt-oss-120b`, called through an OpenAI-style "chat completions" client | DECIDED (initial) · IN REPO | Chosen 2026-11-12 because it is free and easy to get a key. Switching provider means changing `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` in `.env`, not code. Free-tier limits are small (Known issue 12 in `PROJECT_STATUS.md`). Privacy: request text is sent to the provider; use synthetic data only until the supervisor agrees otherwise |
+| D-037 | Extraction rules: the model only proposes. Every value must come with exact words copied from the request, and our code checks that those words are really in the request. An amount must also match its quoted words. Missing required details are worked out by our code. Failures end as `INVALID` or `FAILED`, never a crash | DECIDED · IN REPO | Reasons: hard rules 1-3 and 7 in `CLAUDE.md`, and the false-allow metric. JSON mode is used (not strict schema mode) so any provider works. One retry on unreadable output, none on provider errors |
 | D-009 | LangChain / LangGraph | OPEN, not needed initially | Plain Python workflow first |
 | D-010 | RAG / vector database | DEFERRED | Explicit rules in PostgreSQL suffice for the first slice |
 | D-011 | Authentication library and token design | OPEN | Must include secure password hashing and server-side RBAC |
@@ -56,7 +57,7 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | Q-004 | Authentication design (D-011) and role model | Any protected endpoint |
 | Q-005 | Pin the Python version (and Node version) the team uses; add to the Handbook | Reproducible setup |
 | Q-006 | Database schema: entities, columns, relationships, tenancy | Database tasks |
-| Q-008 | LLM provider and model (D-008) | Extraction agent |
+| Q-008 | CLOSED 2026-11-12: Groq free tier (D-008). A key is still needed before the first real-model test | Real-model test |
 | Q-009 | Triage 7 moderate `npm audit` findings | Security hygiene |
 
 ## Change log
@@ -68,3 +69,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | 2026-11-05 | Q-007 draft added in `docs/POLICY_RULES.md` (rules POL-001…POL-009, POL-900; all PROPOSED, demo values OPEN) | Maira Qazi |
 | 2026-11-08 | Policy rules approved: added D-032…D-036, closed Q-007 | Maira Qazi |
 | 2026-11-10 | Merged shadcn/ui and the database layer: D-005 split into D-005 (DECIDED · IN REPO) and D-005b (Alembic, PROPOSED); D-015 resolved (shadcn/ui); D-025 partly done | Claude (via Haya) |
+| 2026-11-12 | Extraction agent first slice: D-008 decided (Groq, switchable), added D-037 (extraction checks), closed Q-008 | Claude (via Haya) |

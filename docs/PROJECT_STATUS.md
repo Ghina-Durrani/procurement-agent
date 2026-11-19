@@ -2,7 +2,7 @@
 
 Living progress record. Every Claude updates this when a task changes state. Do not mark a task Done unless its acceptance criteria and tests are satisfied and the checks were actually run.
 
-**Last audit:** 2026-11-10 · `main` at `a72fa12` plus the merge of `feat/frontend-shadcn-base`. Checks were run in a cloud sandbox, not on teammates' machines. The database test was run against a temporary local PostgreSQL 16, **not** the Docker Compose container.
+**Last audit:** 2026-11-12 · `main` at `5a4a773` plus the extraction agent first slice (below). Checks were run in a cloud sandbox, not on teammates' machines. The extraction agent has only been run against a scripted fake model, never a real one.
 
 ## 1. Milestone sequence (from `TECH_STACK_AND_DECISIONS.md` §13)
 
@@ -12,7 +12,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 2 | Environment baseline | Done | Backend starts, frontend checks pass, and the backend connects to PostgreSQL (`check_connection()` test passes when a database is running). The Docker Compose container itself was not run in the audit sandbox |
 | 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | Database connection exists, but no models, migrations, or routes yet |
 | 4 | Deterministic policy engine with tests | Done | Engine and tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036). Calling it from the workflow comes with the service layer |
-| 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Not started | LLM provider OPEN (D-008) |
+| 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | First slice built and tested with a fake model (`backend/app/services/extraction/`, 95 tests). **Not yet tried on a real model.** Urgency scoring and the clarification loop are not built (D-031 open) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
 | 8 | Evaluation: System A vs System B | Not started | No dataset yet |
@@ -20,17 +20,19 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 
 ## 2. What is built (IN REPO)
 
-**Backend:** FastAPI app factory; `/health`; docs hidden outside development; typed settings with secret masking; database connection layer (`app/db/session.py`: engine, session, `check_connection()`; SQLAlchemy 2 + psycopg 3); deterministic policy engine (`app/policy/`, rules POL-001 to POL-009 and POL-900).
+**Backend:** FastAPI app factory; `/health`; docs hidden outside development; typed settings with secret masking; database connection layer (`app/db/session.py`: engine, session, `check_connection()`; SQLAlchemy 2 + psycopg 3); deterministic policy engine (`app/policy/`, rules POL-001 to POL-009 and POL-900); extraction agent first slice (`app/services/extraction/`: schemas, provider-agnostic LLM adapter, Groq/OpenAI-style client, fake model, prompt, evidence checks, converter to `PolicyInput`, command-line demo).
 **Frontend:** Vite + React 19 + TS strict + Tailwind 4; design tokens for the three policy outcomes; shadcn/ui base components in `src/components/ui/` (button, card, dialog, input, label, select, skeleton, sonner, table, textarea, badge); `PolicyOutcomeBadge`; `apiRequest` client; ESLint/Prettier/Husky guardrails; many libraries installed but unused.
 **Infra:** Compose file for PostgreSQL 16 (port 5433, localhost-only, volume, healthcheck); `.env.example`; `.gitignore`; LF line endings.
 **Docs:** `CLAUDE.md` and the `docs/` set, including `POLICY_RULES.md`.
 
-## 3. Verified check results (2026-11-10, sandbox)
+## 3. Verified check results (2026-11-12 for backend, 2026-11-10 for frontend; sandbox)
 
 | Check | Result |
 |---|---|
-| `pytest` (backend/), database running | 81 passed, 1 deprecation warning (Starlette `TestClient` suggests `httpx2`) |
-| `pytest -m "not integration"` (no database) | 80 passed, 1 deselected. Plain `pytest` without a database running fails only `test_database_connection_works` |
+| `pytest -m "not integration"` (backend/, no database) | 175 passed, 1 deselected, 1 deprecation warning (Starlette `TestClient` suggests `httpx2`). 95 of these are the new extraction tests |
+| `pytest` (backend/), database running | 81 passed on 2026-11-10, before the extraction tests were added; not re-run since. Plain `pytest` without a database fails only `test_database_connection_works` |
+| Extraction tests, deliberately broken code | Two on-purpose breaks of `extractor.py` (skip the evidence check; skip the missing-field calculation) made 8 and 11 tests fail. The file was then restored |
+| Extraction agent on a real model | **not run** |
 | `npm run typecheck` | clean |
 | `npm run lint` | clean |
 | `npm run format:check` | clean |
@@ -50,7 +52,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Schema design (Q-006) | _assign_ | Not started | Next planning step |
 | Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
 | Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
-| Extraction agent (Q-008, then implementation) | _assign_ | Not started | First slice: schema, LLM adapter with a fake for tests, validation, conversion to the policy engine's `PolicyInput` |
+| Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
 
 Owners are not recorded in the repo; fill them in.
 
@@ -64,11 +66,16 @@ Owners are not recorded in the repo; fill them in.
 6. Python/Node versions not pinned.
 7. Plain `pytest` fails one test (`test_database_connection_works`) when the PostgreSQL container is not running. Start it with `docker compose up -d`, or run `pytest -m "not integration"`.
 8. Alembic is not installed, so there are no migrations yet.
+9. The extraction agent has not been tested on a real model, so its real accuracy is unknown.
+10. `proposed_priority` is not set yet (urgency scoring is not built). The policy engine treats a missing priority as "not an emergency", so the emergency rule cannot fire until urgency scoring exists.
+11. The extraction evidence check proves a value's words really appear in the request. It cannot prove the requester told the truth, and it does not read amounts written only in words (those go to review).
+12. The Groq free tier is limited (about 8,000 tokens per minute and 200,000 tokens per day for `openai/gpt-oss-120b` at the time of writing; check the Groq console for the real numbers). Large evaluation runs must be spread over several days or use another provider.
 
 ## 6. Change log (newest first; one line per merged task)
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-12 | Haya (with Claude) | Extraction agent first slice in `backend/app/services/extraction/` with 95 tests and an offline demo; added `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS` settings (D-008, D-037) |
 | 2026-11-10 | Haya | Merged `feat/frontend-shadcn-base`: database connection layer (Task 2.1, with config tests and one integration test), shadcn/ui base components, UTF-8 `requirements.txt`, `.env` path no longer depends on the working folder |
 | 2026-11-08 | Maira Qazi | Added policy engine (`backend/app/policy/`) with tests covering the 20 example cases, edge cases and fail-closed behaviour; recorded the approved rules (D-032 to D-036) and closed Q-007 |
 | 2026-11-05 | Ghina-Durrani | Aligned Module 1 docs: urgency detection, clarification loop, English only (D-028 to D-031) |

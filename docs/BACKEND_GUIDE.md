@@ -9,7 +9,8 @@ Python + FastAPI modular monolith. Read `ENGINEERING_HANDBOOK.md` first. Labels:
 - `backend/app/db/session.py`: `get_engine()`, `get_session_factory()`, `get_db()` (FastAPI dependency that closes the session), `check_connection()`. SQLAlchemy 2 with the psycopg 3 driver (D-005).
 - Tests: `test_health.py` (3), `test_config.py` (2), `test_database_connection.py` (1, marked `integration`: it needs PostgreSQL running, so start it with `docker compose up -d` or run `pytest -m "not integration"`).
 - Installed libraries: FastAPI 0.159, Pydantic 2.14, pydantic-settings, SQLAlchemy 2.1, psycopg 3, Uvicorn, pytest, httpx, python-dotenv.
-- **Not present yet:** Alembic (no migrations), models, routers, services, auth, CORS, LLM adapter, logging setup.
+- **Extraction agent (added 2026-11-12):** `backend/app/services/extraction/`, tests in `backend/tests/extraction/`. Entry point: `extract_request(text, llm, categories=..., required_fields=...)`, then `to_policy_input(...)`, then `evaluate(...)`. The LLM sits behind the `LLMClient` interface (`llm.py`); the real client is `openai_compatible.py` (Groq by default), tests use `FakeLLMClient`. Settings: `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`. Try it with `python -m app.services.extraction.demo --offline` from `backend/` (D-008, D-037).
+- **Not present yet:** Alembic (no migrations), models, routers, auth, CORS, urgency scoring, clarification loop, logging setup.
 - **Policy engine (added 2026-11-08):** `backend/app/policy/` (`types.py`, `rules.py`, `engine.py`), tests in `backend/tests/policy/`. Rules are defined in `docs/POLICY_RULES.md` (approved, D-032).
 
 ## 2. Established patterns — follow these exactly
