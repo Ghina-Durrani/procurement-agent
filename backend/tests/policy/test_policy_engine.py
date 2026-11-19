@@ -14,6 +14,7 @@ from policy_factories import (
     OTHER_USER_ID,
     REQUEST_ID,
     demo_config,
+    pre_po_request,
     recent,
     starting_request,
 )
@@ -136,22 +137,41 @@ def test_a_crashing_rule_does_not_hide_a_block(monkeypatch: pytest.MonkeyPatch) 
 # --- Checkpoints -----------------------------------------------------------------------
 
 
+def pre_po(**changes: object):
+    return evaluate(pre_po_request(**changes), demo_config())
+
+
+def test_pre_po_starting_request_continues() -> None:
+    assert pre_po().outcome == CONTINUE
+
+
 def test_pre_po_without_quotation_count_goes_to_human_review() -> None:
-    result = run(checkpoint=Checkpoint.PRE_PO, quotation_count=None)
+    result = pre_po(quotation_count=None)
     assert result.outcome == REVIEW
     assert result.triggered_rule_ids == ["POL-900"]
 
 
+def test_pre_po_without_a_selected_quotation_goes_to_human_review() -> None:
+    result = pre_po(selected_quotation_total=None)
+    assert result.outcome == REVIEW
+    assert set(result.triggered_rule_ids) == {"POL-900"}
+
+
+@pytest.mark.parametrize("amount", ["0.00", "-1.00"])
+def test_pre_po_zero_or_negative_quotation_goes_to_human_review(amount: str) -> None:
+    result = pre_po(selected_quotation_total=Decimal(amount))
+    assert result.outcome == REVIEW
+    assert "POL-900" in result.triggered_rule_ids
+
+
 def test_pre_po_without_a_supplier_goes_to_human_review() -> None:
-    result = run(
-        checkpoint=Checkpoint.PRE_PO, quotation_count=1, supplier_name=None, supplier_status=None
-    )
+    result = pre_po(supplier_name=None, supplier_status=None)
     assert result.outcome == REVIEW
     assert result.triggered_rule_ids == ["POL-900"]
 
 
 def test_pre_po_blocked_supplier_is_blocked() -> None:
-    result = run(checkpoint=Checkpoint.PRE_PO, quotation_count=1, supplier_status="BLOCKED")
+    result = pre_po(supplier_status="BLOCKED")
     assert result.outcome == BLOCK
     assert result.triggered_rule_ids == ["POL-005"]
 
@@ -165,10 +185,134 @@ def test_pre_po_blocked_supplier_is_blocked() -> None:
     ],
 )
 def test_quotation_band_boundaries(total: str, quotes: int, expected: PolicyOutcome) -> None:
-    result = run(
-        checkpoint=Checkpoint.PRE_PO, estimated_total=Decimal(total), quotation_count=quotes
+    # The approval for this amount was already given at intake, so only POL-003 can fire.
+    result = pre_po(
+        selected_quotation_total=Decimal(total),
+        approved_total=Decimal(total),
+        quotation_count=quotes,
     )
     assert result.outcome == expected
+
+
+def test_quotation_rule_uses_the_selected_quotation_not_the_estimate() -> None:
+    result = pre_po(
+        estimated_total=Decimal("30000.00"),
+        selected_quotation_total=Decimal("150000.00"),
+        approved_total=Decimal("150000.00"),
+        quotation_count=1,
+    )
+    assert result.triggered_rule_ids == ["POL-003"]
+
+
+# --- Price changes between intake and purchase order (POL-002 at PRE_PO, D-039) --------
+
+
+@pytest.mark.parametrize(
+    ("cleared", "selected", "quotes", "expected_rules", "expected_roles"),
+    [
+        ("40000.00", "45000.00", 1, [], []),
+        ("40000.00", "50000.00", 1, [], []),
+        ("40000.00", "50000.01", 1, ["POL-002"], ["MANAGER"]),
+        ("40000.00", "90000.00", 1, ["POL-002"], ["MANAGER"]),
+        ("60000.00", "450000.00", 3, [], []),
+        ("60000.00", "500000.01", 3, ["POL-002"], ["SENIOR_MANAGER"]),
+        ("600000.00", "550000.00", 3, [], []),
+    ],
+    ids=[
+        "small-rise-same-tier",
+        "rise-to-exact-limit",
+        "rise-just-over-limit",
+        "estimate-40k-quote-90k",
+        "manager-approved-stays-manager",
+        "manager-approved-needs-senior",
+        "price-went-down",
+    ],
+)
+def test_price_change_needs_a_more_senior_approver_only_when_the_tier_rises(
+    cleared: str,
+    selected: str,
+    quotes: int,
+    expected_rules: list[str],
+    expected_roles: list[str],
+) -> None:
+    result = pre_po(
+        approved_total=Decimal(cleared),
+        selected_quotation_total=Decimal(selected),
+        quotation_count=quotes,
+    )
+    assert result.triggered_rule_ids == expected_rules
+    assert result.required_approver_roles == expected_roles
+
+
+def test_price_rise_reason_shows_both_amounts() -> None:
+    result = pre_po(
+        approved_total=Decimal("40000.00"), selected_quotation_total=Decimal("90000.00")
+    )
+    reason = result.triggered_rules[0].reason
+    assert "90,000.00" in reason and "40,000.00" in reason
+
+
+def test_nothing_cleared_yet_means_any_approval_tier_fires() -> None:
+    result = pre_po(approved_total=None, selected_quotation_total=Decimal("90000.00"))
+    assert result.triggered_rule_ids == ["POL-002"]
+    assert result.required_approver_roles == ["MANAGER"]
+
+
+def test_cheap_selected_quote_is_fine_even_if_other_quotes_were_expensive() -> None:
+    # Only the selected quotation is passed in; a rejected expensive quote cannot escalate.
+    result = pre_po(
+        approved_total=Decimal("40000.00"),
+        selected_quotation_total=Decimal("38000.00"),
+        quotation_count=3,
+    )
+    assert result.outcome == CONTINUE
+
+
+def test_selected_quotation_is_ignored_at_intake() -> None:
+    result = run(selected_quotation_total=Decimal("900000.00"))
+    assert result.outcome == CONTINUE
+
+
+# --- Budget recheck before purchase order (POL-007 at PRE_PO, D-040) ------------------
+
+
+@pytest.mark.parametrize(
+    ("budget", "expected", "expected_roles"),
+    [
+        ("INSUFFICIENT", BLOCK, []),
+        ("NEEDS_FINANCE_APPROVAL", REVIEW, ["FINANCE_APPROVER"]),
+        (None, REVIEW, ["FINANCE_APPROVER"]),
+        ("AVAILABLE", CONTINUE, []),
+    ],
+)
+def test_budget_is_rechecked_before_purchase_order(
+    budget: str | None, expected: PolicyOutcome, expected_roles: list[str]
+) -> None:
+    result = pre_po(budget_status=budget)
+    assert result.outcome == expected
+    assert result.required_approver_roles == expected_roles
+    if expected != CONTINUE:
+        assert result.triggered_rule_ids == ["POL-007"]
+
+
+def test_several_problems_before_purchase_order_are_all_reported() -> None:
+    result = pre_po(
+        approved_total=Decimal("40000.00"),
+        selected_quotation_total=Decimal("150000.00"),
+        quotation_count=1,
+        budget_status="INSUFFICIENT",
+    )
+    assert result.outcome == BLOCK
+    assert result.triggered_rule_ids == ["POL-002", "POL-003", "POL-007"]
+    assert result.required_approver_roles == ["MANAGER", "PROCUREMENT_OFFICER"]
+
+
+def test_float_quotation_amount_in_raw_input_is_refused() -> None:
+    payload = pre_po_request().model_dump(mode="json")
+    payload["selected_quotation_total"] = 30000.0
+    result = evaluate(payload, demo_config())
+    assert result.outcome == REVIEW
+    assert result.triggered_rule_ids == ["POL-900"]
 
 
 def test_approval_by_a_different_person_is_allowed() -> None:

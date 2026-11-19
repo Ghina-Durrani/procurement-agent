@@ -85,7 +85,14 @@ class PolicyInput(_Frozen):
     submitted_at: AwareDatetime | None = None
     extraction_status: ExtractionStatus | None = None
     missing_fields: list[str] = Field(default_factory=list)
+    # The requester's estimate, as extracted from the request (used at INTAKE).
     estimated_total: Decimal | None = None
+    # The chosen supplier quotation (used at PRE_PO). Unselected quotations are never passed in.
+    selected_quotation_total: Decimal | None = None
+    # The amount already cleared at INTAKE: the estimate if no approval was needed, or the amount
+    # a human approver approved. Used at PRE_PO to detect a price rise that needs a more senior
+    # approver. None means nothing has been cleared yet.
+    approved_total: Decimal | None = None
     currency: str | None = None
     item_category: str | None = None
     supplier_name: str | None = None
@@ -96,7 +103,9 @@ class PolicyInput(_Frozen):
     acting_user_id: UUID | None = None
     recent_requests: list[RecentRequest] = Field(default_factory=list)
 
-    reject_float_money = field_validator("estimated_total", mode="before")(_reject_float)
+    reject_float_money = field_validator(
+        "estimated_total", "selected_quotation_total", "approved_total", mode="before"
+    )(_reject_float)
 
 
 class ApprovalTier(_Frozen):

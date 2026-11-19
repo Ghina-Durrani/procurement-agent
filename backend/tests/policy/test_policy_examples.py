@@ -1,4 +1,4 @@
-"""The 20 example cases from docs/POLICY_RULES.md section 7, one test each.
+"""The example cases from docs/POLICY_RULES.md section 7, one test each.
 
 If a rule changes, the table in the document and this table must change together.
 """
@@ -65,7 +65,8 @@ CASES: list[tuple[str, dict[str, Any], PolicyOutcome, list[str], list[str]]] = [
         "C18",
         {
             "checkpoint": Checkpoint.PRE_PO,
-            "estimated_total": Decimal("300000.00"),
+            "selected_quotation_total": Decimal("300000.00"),
+            "approved_total": Decimal("300000.00"),
             "quotation_count": 1,
         },
         REVIEW,
@@ -78,6 +79,45 @@ CASES: list[tuple[str, dict[str, Any], PolicyOutcome, list[str], list[str]]] = [
         {"checkpoint": Checkpoint.APPROVAL, "acting_user_id": REQUESTER_ID},
         BLOCK,
         ["POL-009"],
+        [],
+    ),
+    (
+        "C21",
+        {
+            "checkpoint": Checkpoint.PRE_PO,
+            "estimated_total": Decimal("40000.00"),
+            "approved_total": Decimal("40000.00"),
+            "selected_quotation_total": Decimal("90000.00"),
+            "quotation_count": 1,
+        },
+        REVIEW,
+        ["POL-002"],
+        ["MANAGER"],
+    ),
+    (
+        "C22",
+        {
+            "checkpoint": Checkpoint.PRE_PO,
+            "estimated_total": Decimal("40000.00"),
+            "approved_total": Decimal("40000.00"),
+            "selected_quotation_total": Decimal("45000.00"),
+            "quotation_count": 1,
+        },
+        CONTINUE,
+        [],
+        [],
+    ),
+    (
+        "C23",
+        {
+            "checkpoint": Checkpoint.PRE_PO,
+            "selected_quotation_total": Decimal("30000.00"),
+            "approved_total": Decimal("30000.00"),
+            "quotation_count": 1,
+            "budget_status": "INSUFFICIENT",
+        },
+        BLOCK,
+        ["POL-007"],
         [],
     ),
 ]

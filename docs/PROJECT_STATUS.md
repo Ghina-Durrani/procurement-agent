@@ -11,7 +11,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 1 | Repository and environment audit | Done | This document |
 | 2 | Environment baseline | Done | Backend starts, frontend checks pass, and the backend connects to PostgreSQL (`check_connection()` test passes when a database is running). The Docker Compose container itself was not run in the audit sandbox |
 | 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | Database connection exists, but no models, migrations, or routes yet |
-| 4 | Deterministic policy engine with tests | Done | Engine and tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036). Calling it from the workflow comes with the service layer |
+| 4 | Deterministic policy engine with tests | Done | Engine and 100 tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036, D-039, D-040). Calling it from the workflow comes with the service layer |
 | 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | First slice built and tested with a fake model (`backend/app/services/extraction/`, 95 tests). **Not yet tried on a real model.** Urgency scoring and the clarification loop are not built (D-031 open) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
@@ -49,7 +49,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | shadcn/ui base components | Haya | Done | Merged 2026-11-10 (D-015) |
 | Standard error envelope + CORS (Q-002, Q-003) | _assign_ | Not started | Do before the first feature endpoint |
 | Fix `requirements.txt` (D-025) | _assign_ | Partly done | Now UTF-8. Still a full `pip freeze`; the runtime/dev split is not done |
-| Schema design (Q-006) | _assign_ | Not started | Next planning step |
+| Schema design (Q-006) | Ghina | In progress | 19 tables in 6 migrations with 126 database tests (207 passed with the existing 81), run in a cloud sandbox only. Not yet run on Ghina's machine and not merged, so not Done. Needs approval of D-037 and D-038 |
 | Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
 | Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
 | Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
@@ -65,7 +65,7 @@ Owners are not recorded in the repo; fill them in.
 5. No CI; `main` is unprotected and unchecked on push.
 6. Python/Node versions not pinned.
 7. Plain `pytest` fails one test (`test_database_connection_works`) when the PostgreSQL container is not running. Start it with `docker compose up -d`, or run `pytest -m "not integration"`.
-8. Alembic is not installed, so there are no migrations yet.
+8. Alembic is installed with the schema (D-005b, D-037); the migrations have not yet been run on teammates' machines.
 9. The extraction agent has not been tested on a real model, so its real accuracy is unknown.
 10. `proposed_priority` is not set yet (urgency scoring is not built). The policy engine treats a missing priority as "not an emergency", so the emergency rule cannot fire until urgency scoring exists.
 11. The extraction evidence check proves a value's words really appear in the request. It cannot prove the requester told the truth, and it does not read amounts written only in words (those go to review).
@@ -75,7 +75,9 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
-| 2026-11-12 | Haya (with Claude) | Extraction agent first slice in `backend/app/services/extraction/` with 95 tests and an offline demo; added `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS` settings (D-008, D-037) |
+| 2026-11-19 | Maira Qazi | Merged `main` into `feat/extraction-slice` (schema + policy update); Haya's extraction decision renumbered D-037 → D-043 |
+| 2026-11-19 | Maira Qazi | Policy engine review: approval limits and budget re-checked before the purchase order (D-039, D-040), new example cases C21 to C23, 25 new tests; workflow order fixed in `FYP_MASTER_CONTEXT.md` (validate before clarify); D-041 and D-042 proposed; one PRE_PO contract test in `tests/db` now reads the selected quotation and approved amount from the database (232 tests pass with the schema) |
+| 2026-11-12 | Haya (with Claude) | Extraction agent first slice in `backend/app/services/extraction/` with 95 tests and an offline demo; added `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS` settings (D-008, D-043) |
 | 2026-11-10 | Haya | Merged `feat/frontend-shadcn-base`: database connection layer (Task 2.1, with config tests and one integration test), shadcn/ui base components, UTF-8 `requirements.txt`, `.env` path no longer depends on the working folder |
 | 2026-11-08 | Maira Qazi | Added policy engine (`backend/app/policy/`) with tests covering the 20 example cases, edge cases and fail-closed behaviour; recorded the approved rules (D-032 to D-036) and closed Q-007 |
 | 2026-11-05 | Ghina-Durrani | Aligned Module 1 docs: urgency detection, clarification loop, English only (D-028 to D-031) |
