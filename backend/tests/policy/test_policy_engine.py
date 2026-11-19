@@ -343,6 +343,30 @@ def test_missing_detail_that_is_not_required_is_ignored() -> None:
     assert run(missing_fields=["needed_by_date"]).outcome == CONTINUE
 
 
+def test_conflicting_suppliers_go_to_review_even_without_a_name() -> None:
+    result = run(supplier_name=None, supplier_status=None, supplier_conflict=True)
+    assert result.outcome == REVIEW
+    assert result.triggered_rule_ids == ["POL-005"]
+    assert result.required_approver_roles == ["PROCUREMENT_OFFICER"]
+
+
+def test_conflicting_suppliers_with_an_approved_name_still_go_to_review() -> None:
+    # A conflict is never settled by the one name that happens to be approved.
+    result = run(supplier_conflict=True)
+    assert result.outcome == REVIEW
+    assert result.triggered_rule_ids == ["POL-005"]
+
+
+def test_blocked_supplier_still_blocks_when_suppliers_conflict() -> None:
+    result = run(supplier_status="BLOCKED", supplier_conflict=True)
+    assert result.outcome == BLOCK
+    assert [rule.outcome for rule in result.triggered_rules] == [BLOCK]
+
+
+def test_no_supplier_and_no_conflict_still_continues() -> None:
+    assert run(supplier_name=None, supplier_status=None).outcome == CONTINUE
+
+
 def test_supplier_named_but_not_found_goes_to_review() -> None:
     result = run(supplier_name="Unknown Co", supplier_status=None)
     assert result.outcome == REVIEW

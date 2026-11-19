@@ -97,6 +97,9 @@ class PolicyInput(_Frozen):
     item_category: str | None = None
     supplier_name: str | None = None
     supplier_status: SupplierStatus | None = None
+    # True when the request names suppliers that contradict each other, so no single supplier
+    # could be read from it (D-048). POL-005 then asks a person to confirm which one is meant.
+    supplier_conflict: bool = False
     budget_status: BudgetStatus | None = None
     proposed_priority: Priority | None = None
     quotation_count: int | None = Field(default=None, ge=0)

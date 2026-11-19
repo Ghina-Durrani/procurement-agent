@@ -155,3 +155,40 @@ def test_without_a_supplier_lookup_a_named_supplier_goes_to_review():
 def test_known_categories_include_allowed_controlled_and_prohibited_codes():
     codes = known_categories(demo_config())
     assert {"FURNITURE", "SOFTWARE", "GIFT_CARDS"} <= set(codes)
+
+
+CONFLICT_TEXT = TEXT + " Please place the order with Falcon Wholesale."
+
+
+def _decide_without_supplier_status(result: ExtractionResult):
+    # No single supplier was read, so there is nothing to look up in the supplier list.
+    data = to_policy_input(
+        result,
+        request_id=REQUEST_ID,
+        organization_id=ORG_ID,
+        submitted_at=NOW,
+        budget_status=BudgetStatus.AVAILABLE,
+        proposed_priority=Priority.NORMAL,
+    )
+    return data, evaluate(data, demo_config())
+
+
+def test_conflicting_suppliers_go_to_human_review_with_pol_005():
+    statuses = {"supplier_name": "CONFLICTING"}
+    result, _ = run([reply(supplier_name=None, statuses=statuses)], text=CONFLICT_TEXT)
+    data, decision = _decide_without_supplier_status(result)
+    assert data.supplier_name is None
+    assert data.supplier_conflict is True
+    assert decision.outcome is REVIEW
+    assert decision.triggered_rule_ids == ["POL-005"]
+
+
+def test_an_unclear_supplier_is_not_a_conflict():
+    # "the usual vendor" names nobody: same as no supplier yet (D-048 covers CONFLICTING only).
+    text = TEXT.replace("from Alpha Traders", "from the usual vendor")
+    evidence = {**GOOD["evidence"], "supplier_name": "the usual vendor"}
+    statuses = {"supplier_name": "AMBIGUOUS"}
+    result, _ = run([reply(supplier_name=None, evidence=evidence, statuses=statuses)], text=text)
+    data, decision = _decide_without_supplier_status(result)
+    assert data.supplier_conflict is False
+    assert decision.outcome is CONTINUE

@@ -120,6 +120,13 @@ CASES: list[tuple[str, dict[str, Any], PolicyOutcome, list[str], list[str]]] = [
         ["POL-007"],
         [],
     ),
+    (
+        "C24",
+        {"supplier_name": None, "supplier_status": None, "supplier_conflict": True},
+        REVIEW,
+        ["POL-005"],
+        ["PROCUREMENT_OFFICER"],
+    ),
 ]
 
 

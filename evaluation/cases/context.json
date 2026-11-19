@@ -1,0 +1,60 @@
+{
+  "about": "Shared, trusted context for every evaluation case: facts that come from company data, not from the request text. Demo values only (POLICY_RULES.md section 6). A case can override default_budget_status and add recent_requests in its own context.",
+  "submitted_at": "2026-11-05T10:00:00+00:00",
+  "default_budget_status": "AVAILABLE",
+  "suppliers": {
+    "approved": [
+      "Alpha Traders",
+      "TechZone",
+      "Office Mart",
+      "CleanPro Supplies",
+      "PrintHub",
+      "Metro Furniture",
+      "SkyWays Travel",
+      "CoolAir Services"
+    ],
+    "blocked": ["Falcon Wholesale", "QuickDeal Imports"]
+  },
+  "policy_config": {
+    "organization_id": "00000000-0000-0000-0000-0000000000a1",
+    "policy_version": "demo-2026-11-05.1",
+    "accepted_currencies": ["PKR"],
+    "required_fields": [
+      "item_description",
+      "quantity",
+      "estimated_total",
+      "currency",
+      "business_justification"
+    ],
+    "approval_tiers": [
+      {"up_to": "50000.00", "approver_role": null},
+      {"up_to": "500000.00", "approver_role": "MANAGER"},
+      {"up_to": null, "approver_role": "SENIOR_MANAGER"}
+    ],
+    "quotation_bands": [
+      {"up_to": "100000.00", "min_quotations": 1},
+      {"up_to": null, "min_quotations": 3}
+    ],
+    "split_window_days": 30,
+    "split_watched_thresholds": ["50000.00", "100000.00", "500000.00"],
+    "split_ignored_statuses": ["REJECTED", "WITHDRAWN"],
+    "allowed_categories": [
+      "OFFICE_SUPPLIES",
+      "IT_HARDWARE",
+      "FURNITURE",
+      "MAINTENANCE_SERVICES",
+      "CLEANING_SUPPLIES",
+      "PRINTING",
+      "TRAVEL"
+    ],
+    "controlled_categories": {
+      "SOFTWARE": "IT_APPROVER",
+      "HAZARDOUS_CHEMICALS": "HSE_APPROVER",
+      "VEHICLES": "SENIOR_MANAGER"
+    },
+    "prohibited_categories": ["WEAPONS", "ALCOHOL", "PERSONAL_USE", "GIFT_CARDS"],
+    "procurement_officer_role": "PROCUREMENT_OFFICER",
+    "finance_approver_role": "FINANCE_APPROVER",
+    "emergency_approver_role": "SENIOR_MANAGER"
+  }
+}

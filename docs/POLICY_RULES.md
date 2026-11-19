@@ -1,6 +1,6 @@
 # Policy Rules
 
-**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040). All amounts and lists are still demo values (OPEN), not real company limits.
+**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040); a request naming conflicting suppliers goes to review (D-048). All amounts and lists are still demo values (OPEN), not real company limits.
 
 **Author:** Maira · **Created:** 2026-11-05 · **Answers:** Q-007 in `DECISIONS.md`
 
@@ -54,6 +54,7 @@ The engine does not collect any of this itself. Each item is given to it by anot
 | `extraction_status` | Did the AI read the message properly? | `VALID`, `INVALID` or `FAILED` | AI reading step |
 | `supplier_name` | Supplier mentioned or chosen | `TechZone` | AI reading the message / supplier choice |
 | `supplier_status` | Is the supplier approved? | `APPROVED`, `NOT_APPROVED` or `BLOCKED` | Database (supplier list) |
+| `supplier_conflict` | Does the request name suppliers that contradict each other? | `true` / `false` (default `false`) | AI reading the message (supplier status `CONFLICTING`) |
 | `budget_status` | Is there money for it? (at `PRE_PO`: for the selected quotation) | `AVAILABLE`, `NEEDS_FINANCE_APPROVAL` or `INSUFFICIENT` | Finance check (it works out and reserves the budget; the engine only reads the result) |
 | `proposed_priority` | How urgent it seems | `NORMAL`, `HIGH_PRIORITY` or `EMERGENCY` | Urgency check |
 | `quotation_count` | How many supplier quotes were collected | `3` | Quotation step (only at `PRE_PO`) |
@@ -101,8 +102,8 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 
 ### POL-005: Do we trust this supplier?
 - **When:** request arrives, and again before the purchase order
-- **Needs:** `supplier_name`, `supplier_status`
-- **Rule:** blocked supplier → `BLOCK`. Supplier not on the approved list (or not found) → `HUMAN_REVIEW` by a Procurement Officer. Approved → fine. No supplier named yet when the request arrives → fine. No supplier chosen before the purchase order → `HUMAN_REVIEW` (POL-900).
+- **Needs:** `supplier_name`, `supplier_status`, `supplier_conflict`
+- **Rule:** blocked supplier → `BLOCK`. The request names conflicting suppliers ("buy from TechZone ... place the order with Falcon Wholesale") → `HUMAN_REVIEW` by a Procurement Officer, who confirms which one is meant; not `BLOCK`, because the purchase itself may be fine (D-048). Supplier not on the approved list (or not found) → `HUMAN_REVIEW` by a Procurement Officer. Approved → fine. No supplier named yet when the request arrives → fine. No supplier chosen before the purchase order → `HUMAN_REVIEW` (POL-900).
 - **Reason shown:** "Supplier 'X' is on the blocked list."
 - **Based on:** approved and blocked supplier lists.
 
@@ -192,6 +193,7 @@ These become the tests when the rules are written in code.
 | C21 | before purchase order: estimated 40,000, quotation 90,000, 1 quote | `HUMAN_REVIEW` | POL-002 | Manager |
 | C22 | before purchase order: estimated 40,000, quotation 45,000, 1 quote | `CONTINUE` | none | none |
 | C23 | before purchase order: quotation 30,000, budget insufficient | `BLOCK` | POL-007 | none |
+| C24 | the request names two conflicting suppliers (no single supplier read) | `HUMAN_REVIEW` | POL-005 | Procurement Officer |
 
 ## 8. Decisions on the earlier open questions
 

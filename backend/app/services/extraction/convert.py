@@ -19,7 +19,7 @@ from app.policy import (
     SupplierStatus,
 )
 
-from .schemas import ExtractionResult
+from .schemas import ExtractionResult, FieldStatus
 
 
 def known_categories(config: PolicyConfig) -> list[str]:
@@ -61,6 +61,7 @@ def to_policy_input(
         item_category=result.item_category,
         supplier_name=result.supplier_name,
         supplier_status=supplier_status,
+        supplier_conflict=result.field_status("supplier_name") is FieldStatus.CONFLICTING,
         budget_status=budget_status,
         proposed_priority=proposed_priority,
         recent_requests=list(recent_requests),

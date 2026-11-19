@@ -201,7 +201,7 @@ def split_purchase(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRul
 
 
 def supplier_list(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
-    """POL-005: blocked or unapproved suppliers."""
+    """POL-005: blocked, unapproved or conflicting suppliers."""
     name, status = data.supplier_name, data.supplier_status
     if status is SupplierStatus.BLOCKED:
         return [
@@ -209,6 +209,17 @@ def supplier_list(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule
                 rule_id="POL-005",
                 outcome=BLOCK,
                 reason=f"Supplier '{name}' is on the blocked list.",
+            )
+        ]
+    if data.supplier_conflict:
+        # One of the named suppliers could be blocked, so "no supplier yet" would be unsafe.
+        # Not BLOCK: the request itself may be fine; only the supplier choice is unclear (D-048).
+        return [
+            TriggeredRule(
+                rule_id="POL-005",
+                outcome=REVIEW,
+                reason="The request names conflicting suppliers; confirm which one is meant.",
+                required_approver_role=config.procurement_officer_role,
             )
         ]
     if status is SupplierStatus.NOT_APPROVED or (status is None and _name(name)):
