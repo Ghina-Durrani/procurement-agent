@@ -82,8 +82,10 @@ def input_checks(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]
         found.append(fail_closed(role, "Currency is missing."))
     elif currency not in {_code(c) for c in config.accepted_currencies}:
         found.append(fail_closed(role, f"Currency '{data.currency}' is not accepted."))
-    if data.estimated_total is not None and data.estimated_total <= 0:
-        found.append(fail_closed(role, "Amount must be greater than zero."))
+    for amount in (data.estimated_total, data.selected_quotation_total, data.approved_total):
+        if amount is not None and amount <= 0:
+            found.append(fail_closed(role, "Amount must be greater than zero."))
+            break
     return found
 
 
@@ -102,25 +104,48 @@ def completeness(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]
     ]
 
 
+def _tier_index(config: PolicyConfig, amount: Decimal) -> int:
+    return next(
+        index
+        for index, tier in enumerate(config.approval_tiers)
+        if tier.up_to is None or amount <= tier.up_to
+    )
+
+
 def approval_tiers(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
-    """POL-002: higher amounts need a more senior approver."""
-    total = _need(data.estimated_total, "estimated_total")
-    tier = next(t for t in config.approval_tiers if t.up_to is None or total <= t.up_to)
-    if tier.approver_role is None:
-        return []
+    """POL-002: higher amounts need a more senior approver.
+
+    INTAKE checks the requester's estimate. PRE_PO checks the selected quotation and fires
+    only if it needs a more senior approver than the amount already cleared (D-039).
+    """
+    if data.checkpoint is Checkpoint.PRE_PO:
+        final = _need(data.selected_quotation_total, "selected_quotation_total")
+        index = _tier_index(config, final)
+        cleared = -1 if data.approved_total is None else _tier_index(config, data.approved_total)
+        role = config.approval_tiers[index].approver_role
+        if index <= cleared or role is None:
+            return []
+        so_far = _money(data.approved_total) if data.approved_total is not None else "nothing"
+        reason = (
+            f"Selected quotation {_money(final)} {data.currency} needs {role} approval "
+            f"(cleared so far: {so_far})."
+        )
+    else:
+        total = _need(data.estimated_total, "estimated_total")
+        role = config.approval_tiers[_tier_index(config, total)].approver_role
+        if role is None:
+            return []
+        reason = f"Amount {_money(total)} {data.currency} needs {role} approval."
     return [
         TriggeredRule(
-            rule_id="POL-002",
-            outcome=REVIEW,
-            reason=f"Amount {_money(total)} {data.currency} needs {tier.approver_role} approval.",
-            required_approver_role=tier.approver_role,
+            rule_id="POL-002", outcome=REVIEW, reason=reason, required_approver_role=role
         )
     ]
 
 
 def quotations(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
-    """POL-003: enough supplier quotations for the amount."""
-    total = _need(data.estimated_total, "estimated_total")
+    """POL-003: enough supplier quotations for the selected quotation's amount."""
+    total = _need(data.selected_quotation_total, "selected_quotation_total")
     received = _need(data.quotation_count, "quotation_count")
     band = next(b for b in config.quotation_bands if b.up_to is None or total <= b.up_to)
     if received >= band.min_quotations:
@@ -235,7 +260,10 @@ def categories(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
 
 
 def budget(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
-    """POL-007: budget availability."""
+    """POL-007: budget availability (at PRE_PO, for the selected quotation; D-040).
+
+    The finance check works out and reserves the budget outside this engine.
+    """
     status = data.budget_status
     if status is BudgetStatus.AVAILABLE:
         return []
@@ -311,6 +339,6 @@ RULES_BY_CHECKPOINT: dict[Checkpoint, tuple[str, ...]] = {
         "POL-007",
         "POL-008",
     ),
-    Checkpoint.PRE_PO: ("POL-003", "POL-005"),
+    Checkpoint.PRE_PO: ("POL-002", "POL-003", "POL-005", "POL-007"),
     Checkpoint.APPROVAL: ("POL-009",),
 }

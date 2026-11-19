@@ -100,3 +100,16 @@ def starting_request(**changes: Any) -> PolicyInput:
     }
     values.update(changes)
     return PolicyInput.model_validate(values)
+
+
+def pre_po_request(**changes: Any) -> PolicyInput:
+    """A request at the 'before purchase order' moment: estimated and cleared at 30,000 PKR,
+    one approved supplier's quotation of 30,000 PKR selected, budget available."""
+    values: dict[str, Any] = {
+        "checkpoint": Checkpoint.PRE_PO,
+        "selected_quotation_total": Decimal("30000.00"),
+        "approved_total": Decimal("30000.00"),
+        "quotation_count": 1,
+    }
+    values.update(changes)
+    return starting_request(**values)

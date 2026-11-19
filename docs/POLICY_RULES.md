@@ -1,6 +1,6 @@
 # Policy Rules
 
-**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). All amounts and lists are still demo values (OPEN), not real company limits.
+**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040). All amounts and lists are still demo values (OPEN), not real company limits.
 
 **Author:** Maira · **Created:** 2026-11-05 · **Answers:** Q-007 in `DECISIONS.md`
 
@@ -8,7 +8,7 @@
 
 The policy engine is plain Python code that checks a purchase request against the company's rules. It does not use AI and does not talk to the database: other parts of the system collect the information and hand it over.
 
-The rules are based on standard checks used in real procurement policies (sources in section 9). Each organization can change the numbers and lists.
+The rules are based on standard checks used in real procurement policies (sources in section 11). Each organization can change the numbers and lists.
 
 ## 2. The three answers
 
@@ -31,8 +31,8 @@ The engine runs at three moments. Not every rule runs every time.
 | Moment | Code name | Rules checked |
 |---|---|---|
 | A request arrives (after the AI has read it and asked the requester about missing details) | `INTAKE` | POL-001, 002, 004, 005, 006, 007, 008 |
-| Quotations are collected and a supplier is chosen, before the purchase order | `PRE_PO` | POL-003, 005 |
-| Someone clicks approve | `APPROVAL` | POL-009 |
+| Quotations are collected and a supplier is chosen, before the purchase order | `PRE_PO` | POL-002, 003, 005, 007 |
+| Someone tries to approve (can happen at any stage) | `APPROVAL` | POL-009 |
 
 POL-900 can fire at any moment.
 
@@ -45,14 +45,16 @@ The engine does not collect any of this itself. Each item is given to it by anot
 | `request_id` | ID of this request | UUID | Request record |
 | `organization_id` | Which company the request belongs to (must match the settings) | UUID | Login system (never from the form) |
 | `checkpoint` | Which moment this is (section 3) | `INTAKE` | Workflow |
-| `estimated_total` | Total amount of the request (or of the chosen quotation at `PRE_PO`) | `120000.00` | AI reading the message / quotation |
-| `currency` | Currency of the amount | `PKR` | AI reading the message / quotation |
+| `estimated_total` | Total the requester estimated (used at `INTAKE`) | `40000.00` | AI reading the message |
+| `selected_quotation_total` | Total of the chosen supplier quotation (used at `PRE_PO`). Quotations that were not chosen are never passed in | `90000.00` | Quotation step |
+| `approved_total` | Amount already cleared at `INTAKE`: the estimate if no approval was needed, or the amount an approver approved (used at `PRE_PO`; empty means nothing cleared yet) | `40000.00` | Approval records |
+| `currency` | Currency of the amount (of the quotation at `PRE_PO`) | `PKR` | AI reading the message / quotation |
 | `item_category` | Type of item | `IT_HARDWARE` | AI reading the message (checked against a list, never trusted blindly) |
 | `missing_fields` | Required details still missing after asking the requester | `["quantity"]` | Validation step |
 | `extraction_status` | Did the AI read the message properly? | `VALID`, `INVALID` or `FAILED` | AI reading step |
 | `supplier_name` | Supplier mentioned or chosen | `TechZone` | AI reading the message / supplier choice |
 | `supplier_status` | Is the supplier approved? | `APPROVED`, `NOT_APPROVED` or `BLOCKED` | Database (supplier list) |
-| `budget_status` | Is there money for it? | `AVAILABLE`, `NEEDS_FINANCE_APPROVAL` or `INSUFFICIENT` | Finance check |
+| `budget_status` | Is there money for it? (at `PRE_PO`: for the selected quotation) | `AVAILABLE`, `NEEDS_FINANCE_APPROVAL` or `INSUFFICIENT` | Finance check (it works out and reserves the budget; the engine only reads the result) |
 | `proposed_priority` | How urgent it seems | `NORMAL`, `HIGH_PRIORITY` or `EMERGENCY` | Urgency check |
 | `quotation_count` | How many supplier quotes were collected | `3` | Quotation step (only at `PRE_PO`) |
 | `requester_user_id` | Who made the request | user ID | Login system |
@@ -76,15 +78,16 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 - **Based on:** a request cannot be approved without these basics.
 
 ### POL-002: Does it need a boss's approval?
-- **When:** request arrives
-- **Needs:** `estimated_total`
+- **When:** request arrives, and again before the purchase order
+- **Needs:** `estimated_total` (request arrives); `selected_quotation_total` and `approved_total` (before the purchase order)
 - **Rule:** up to 50,000 → no approval needed. 50,000.01 to 500,000 → `HUMAN_REVIEW` by a Manager. Above 500,000 → `HUMAN_REVIEW` by Senior Management.
-- **Reason shown:** "Amount 1,200,000 PKR needs Senior Management approval."
+- **Before the purchase order:** the same limits are applied to the selected quotation. The rule fires only if the final price needs a **more senior** approver than the amount already cleared. Example: estimated 40,000 (no approval needed), quotation 90,000 → Manager must approve. A rise that stays in the same band (40,000 → 45,000) does not ask again. (D-039)
+- **Reason shown:** "Amount 1,200,000 PKR needs Senior Management approval." / "Selected quotation 90,000 PKR needs Manager approval (cleared so far: 40,000)."
 - **Based on:** approval limits by seniority (delegation of authority).
 
 ### POL-003: Did we compare prices?
 - **When:** before the purchase order
-- **Needs:** `estimated_total`, `quotation_count`
+- **Needs:** `selected_quotation_total`, `quotation_count`
 - **Rule:** up to 100,000 needs 1 quote; above 100,000 needs 3. Fewer → `HUMAN_REVIEW` by a Procurement Officer, who must record why.
 - **Reason shown:** "3 quotations required, 1 received."
 - **Based on:** minimum quotation rules in procurement policies.
@@ -111,7 +114,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 - **Based on:** lists of purchases that need extra approval or are not allowed.
 
 ### POL-007: Is there money in the budget?
-- **When:** request arrives
+- **When:** request arrives, and again before the purchase order (for the selected quotation, D-040)
 - **Needs:** `budget_status`
 - **Rule:** not enough budget → `BLOCK`. Finance must approve, or the budget could not be checked → `HUMAN_REVIEW` by Finance. Budget available → fine.
 - **Reason shown:** "Insufficient budget for this request."
@@ -183,9 +186,12 @@ These become the tests when the rules are written in code.
 | C15 | budget could not be checked | `HUMAN_REVIEW` | POL-007 | Finance |
 | C16 | emergency | `HUMAN_REVIEW` | POL-008 | Senior Management |
 | C17 | 1,200,000 + blocked supplier + emergency | `BLOCK` | POL-002, POL-005, POL-008 | (Senior Management listed, but BLOCK wins) |
-| C18 | before purchase order: 300,000 with 1 quote | `HUMAN_REVIEW` | POL-003 | Procurement Officer |
+| C18 | before purchase order: quotation 300,000 (already approved up to 300,000), 1 quote | `HUMAN_REVIEW` | POL-003 | Procurement Officer |
 | C19 | AI failed to read the message | `HUMAN_REVIEW` | POL-900 | Procurement Officer |
 | C20 | requester tries to approve own request | `BLOCK` | POL-009 | none |
+| C21 | before purchase order: estimated 40,000, quotation 90,000, 1 quote | `HUMAN_REVIEW` | POL-002 | Manager |
+| C22 | before purchase order: estimated 40,000, quotation 45,000, 1 quote | `CONTINUE` | none | none |
+| C23 | before purchase order: quotation 30,000, budget insufficient | `BLOCK` | POL-007 | none |
 
 ## 8. Decisions on the earlier open questions
 
@@ -196,7 +202,24 @@ These become the tests when the rules are written in code.
 
 Still depending on other work: exact value names like `HIGH_PRIORITY` will follow the database design (Q-006); role names will follow the login/roles design (Q-004).
 
-## 9. Sources
+## 9. Rules around the engine (for the other modules)
+
+The engine only answers "is this allowed?". These rules belong to the code around it:
+
+- **`HUMAN_REVIEW` is not an approval.** It only means a person must decide. Nothing moves forward until that person's decision is recorded.
+- **Approving needs three separate checks:** the backend checks that the person has the right role and authority (login and roles, Q-004); the engine checks they are not the requester (POL-009); the approval service saves the decision. Hiding the approve button on screen is not enough on its own.
+- **`POL-900` means a technical problem**, not a business reason. The workflow can treat it differently (for example, alert the team), while the answer stays `HUMAN_REVIEW`.
+- **A submitted request is not edited** (PROPOSED, D-041). Before submitting, the requester can change it freely. After that, the original text stays as it was; a different item needs a new request or a cancel-and-replace. Clarification replies, quotations, supplier choice and approvals are saved as separate records. If an important detail changes, the engine is run again and earlier approvals are re-checked.
+- **Before a purchase order can be prepared** (PROPOSED, D-042; only if purchase orders come into FYP scope), the workflow confirms: the latest `PRE_PO` evaluation is saved and has no `BLOCK`; every required review is done; the approvals cover the final amount; the supplier is still eligible; the budget is confirmed for the final amount.
+
+## 10. Known limits and future work (not built)
+
+- **POL-003 quotations:** only the count is checked. Later: count only valid quotes, drop expired or duplicate ones, check suppliers are independent, compare full cost (tax and delivery). Never pick the cheapest quote automatically if it fails requirements.
+- **POL-004 split purchases:** only looks at the same person's requests. Later: related purchases across departments, projects or requesters. A match is a reason to look, never proof of fraud.
+- **POL-005 suppliers:** matched by name for now. Later: stable supplier IDs from the supplier table.
+- **POL-008 emergencies:** if emergency quote exceptions are ever allowed, they must be an explicit, approved, recorded exception, not a silent skip of POL-003 (D-034 stays as it is).
+
+## 11. Sources
 
 - Approval limits: [Mid and East Antrim Borough Council](https://www.midandeastantrim.gov.uk/council/policies-and-documents/policies/procurement-strategy-policy/procurement-strategy-policy-page-5)
 - Quotations: [Antrim and Newtownabbey Borough Council](https://antrimandnewtownabbey.gov.uk/getmedia/2c0e390e-8167-4518-a5b5-99d5da09fe29/Procurement-Thresholds-2022.docx.aspx); [University of Newcastle](https://policies.newcastle.edu.au/document/view-current.php?id=84)

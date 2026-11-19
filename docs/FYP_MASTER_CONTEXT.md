@@ -28,10 +28,10 @@ Different organizations configure different rules. Each organization has isolate
 
 1. Accept a request, assign a unique ID, preserve the original text unchanged.
 2. **Extraction (LLM)** → structured fields, with source evidence where feasible.
-3. **Urgency detection** → the LLM finds urgency *evidence* in the message (quoted text); **code** computes the proposed priority (normal / high priority / emergency) from that evidence and the delivery deadline. The priority is a proposal only; it never approves or bypasses anything (see §4).
-4. **Clarification loop** → if required details are missing or unclear, the system asks the requester, for at most **2 rounds**. If the details are still unclear after 2 rounds, or extraction is low-confidence or fails, the request goes to a human (fail closed).
-5. **Validation** (code) → missing, invalid, ambiguous, or conflicting information.
-6. **Policy engine** (code) → apply configurable rules.
+3. **Validation** (code) → missing, invalid, ambiguous, or conflicting information. Produces `extraction_status` (`VALID` / `INVALID` / `FAILED`) and `missing_fields` for the policy engine.
+4. **Clarification loop** → if required details are missing or unclear, the system asks the requester, for at most **2 rounds**. After each reply, extraction and validation run again. If the details are still unclear after 2 rounds, or extraction fails validation (`extraction_status` not `VALID`, D-035), the request goes to a human (fail closed).
+5. **Urgency detection** → the LLM finds urgency *evidence* in the message (quoted text); **code** computes the proposed priority (normal / high priority / emergency) from that evidence and the delivery deadline. Runs after clarification so a deadline given in a reply counts. The priority is a proposal only; it never approves or bypasses anything (see §4).
+6. **Policy engine** (code) → apply configurable rules at the `INTAKE` checkpoint. It runs again before a purchase order (`PRE_PO`) and on every approval attempt (`APPROVAL`); see `POLICY_RULES.md` §3.
 7. Outcome is exactly one of: `CONTINUE`, `BLOCK`, `HUMAN_REVIEW`. (This is separate from priority.)
 8. Route to an authorized reviewer when needed (a reviewer can also request clarification).
 9. Record request, extraction, urgency evidence, proposed priority, clarification rounds, policy version, triggered rules, outcome, reviewer actions, timestamps.
@@ -72,7 +72,7 @@ Different organizations configure different rules. Each organization has isolate
 ## 6. Scope
 
 **Core (FYP-I target, December 2026) — one reliable vertical slice:**
-submit free-text request → store original → extract → detect urgency and clarify with requester (max 2 rounds) → validate → policy outcome with rule IDs and reasons → review queue (approve / reject / request clarification) → audit history → minimal React UI → small labelled evaluation set comparing System A vs System B.
+submit free-text request → store original → extract → validate → clarify with requester (max 2 rounds, re-validate after each reply) → detect urgency → policy outcome with rule IDs and reasons → review queue (approve / reject / request clarification) → audit history → minimal React UI → small labelled evaluation set comparing System A vs System B.
 
 **Module 1 additions (DECIDED, agreed by the project owner in chat; see `DECISIONS.md` D-028 to D-030):** urgency detection, the clarification loop, and English-only input are part of Module 1. The urgency thresholds are still OPEN (D-031).
 
@@ -87,7 +87,7 @@ submit free-text request → store original → extract → detect urgency and c
 Keep these three things distinct, in code and in the database:
 
 - **A. Application records**: organizations, users, requests, extractions, evaluations, approvals, audit events.
-- **B. Labelled evaluation cases**: `case_id`, `request_text`, `expected_fields_json`, `expected_missing_fields`, `expected_ambiguities`, `expected_conflicts`, `expected_policy_decision`, `expected_triggered_rules`, `case_category`. Never mixed into application tables.
+- **B. Labelled evaluation cases**: `case_id`, `request_text`, `expected_fields_json`, `expected_missing_fields`, `expected_ambiguities`, `expected_conflicts`, `expected_policy_decision`, `expected_triggered_rules`, `expected_checkpoint`, `expected_required_roles`, `case_category`. Never mixed into application tables.
 - **C. Configurable policy rules**: versioned. Configuration is separate from evaluation logic.
 
 Synthetic data is acceptable; document its limitations. BPI Challenge 2019 is a purchase-order event log: inspect its real schema before using it, and do not assume it has informal text or policy labels. Other background sources: Open Contracting Data Registry, Global Public Procurement Database, PPRA rules (context only).

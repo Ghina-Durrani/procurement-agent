@@ -391,27 +391,40 @@ def test_an_unknown_supplier_is_sent_to_review(session: Session, world) -> None:
 
 
 def test_the_quotation_count_from_the_database_drives_pol_003(session: Session, world) -> None:
-    """300,000 PKR needs 3 quotations (POL-003). One per supplier, so a count is enough."""
+    """300,000 PKR needs 3 quotations (POL-003). One per supplier, so a count is enough.
+
+    At PRE_PO the engine reads the SELECTED quotation's amount and the amount already
+    approved for the request (D-039), both taken from the database here.
+    """
     org, requester, config_row, request = world
+    request.approved_amount = Decimal("300000.00")  # approved by a Manager at intake
     suppliers = [make_supplier(session, org) for _ in range(3)]
 
     def check_pre_po() -> list[str]:
         count = session.scalar(
             select(func.count(Quotation.id)).where(Quotation.request_id == request.id)
         )
+        selected_total = session.scalar(
+            select(Quotation.total_amount).where(
+                Quotation.request_id == request.id, Quotation.is_selected
+            )
+        )
         raw = base_input(
             org,
             requester,
             request,
             checkpoint="PRE_PO",
-            estimated_total="300000.00",
+            selected_quotation_total=str(selected_total),
+            approved_total=str(request.approved_amount),
             supplier_name="Chosen Supplier",
             supplier_status="APPROVED",
             quotation_count=count,
         )
         return evaluate(raw, config_row.config).triggered_rule_ids
 
-    make_quotation(session, org, request, suppliers[0])
+    make_quotation(
+        session, org, request, suppliers[0], total_amount=Decimal("300000.00"), is_selected=True
+    )
     assert check_pre_po() == ["POL-003"]  # 1 quotation, 3 needed
     make_quotation(session, org, request, suppliers[1])
     make_quotation(session, org, request, suppliers[2])

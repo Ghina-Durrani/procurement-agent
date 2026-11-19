@@ -11,7 +11,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 1 | Repository and environment audit | Done | This document |
 | 2 | Environment baseline | Done | Backend starts, frontend checks pass, and the backend connects to PostgreSQL (`check_connection()` test passes when a database is running). The Docker Compose container itself was not run in the audit sandbox |
 | 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | Database connection exists, but no models, migrations, or routes yet |
-| 4 | Deterministic policy engine with tests | Done | Engine and tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036). Calling it from the workflow comes with the service layer |
+| 4 | Deterministic policy engine with tests | Done | Engine and 100 tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036, D-039, D-040). Calling it from the workflow comes with the service layer |
 | 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Not started | LLM provider OPEN (D-008) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
@@ -69,6 +69,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-19 | Maira Qazi | Policy engine review: approval limits and budget re-checked before the purchase order (D-039, D-040), new example cases C21 to C23, 25 new tests; workflow order fixed in `FYP_MASTER_CONTEXT.md` (validate before clarify); D-041 and D-042 proposed; one PRE_PO contract test in `tests/db` now reads the selected quotation and approved amount from the database (232 tests pass with the schema) |
 | 2026-11-10 | Haya | Merged `feat/frontend-shadcn-base`: database connection layer (Task 2.1, with config tests and one integration test), shadcn/ui base components, UTF-8 `requirements.txt`, `.env` path no longer depends on the working folder |
 | 2026-11-08 | Maira Qazi | Added policy engine (`backend/app/policy/`) with tests covering the 20 example cases, edge cases and fail-closed behaviour; recorded the approved rules (D-032 to D-036) and closed Q-007 |
 | 2026-11-05 | Ghina-Durrani | Aligned Module 1 docs: urgency detection, clarification loop, English only (D-028 to D-031) |
