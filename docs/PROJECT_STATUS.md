@@ -47,7 +47,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | shadcn/ui base components | Haya | Done | Merged 2026-11-10 (D-015) |
 | Standard error envelope + CORS (Q-002, Q-003) | _assign_ | Not started | Do before the first feature endpoint |
 | Fix `requirements.txt` (D-025) | _assign_ | Partly done | Now UTF-8. Still a full `pip freeze`; the runtime/dev split is not done |
-| Schema design (Q-006) | _assign_ | Not started | Next planning step |
+| Schema design (Q-006) | Ghina | In progress | 19 tables in 6 migrations with 126 database tests (207 passed with the existing 81), run in a cloud sandbox only. Not yet run on Ghina's machine and not merged, so not Done. Needs approval of D-037 and D-038 |
 | Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
 | Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
 | Extraction agent (Q-008, then implementation) | _assign_ | Not started | First slice: schema, LLM adapter with a fake for tests, validation, conversion to the policy engine's `PolicyInput` |

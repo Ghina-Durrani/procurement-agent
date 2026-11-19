@@ -13,7 +13,7 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-003 | PostgreSQL relational database | DECIDED | Container is IN REPO (Postgres 16) |
 | D-004 | Docker Compose for local PostgreSQL only | DECIDED · IN REPO | API and frontend run on the host. Named volume `pgdata`, healthcheck, host port `127.0.0.1:5433` |
 | D-005 | SQLAlchemy 2.x + psycopg 3 driver | DECIDED · IN REPO | SQLAlchemy 2.1, psycopg 3.3. Connection layer is `backend/app/db/session.py` |
-| D-005b | Alembic for migrations | PROPOSED | Not installed yet. Install it with the first table (CLAUDE.md rule 8) |
+| D-005b | Alembic for migrations | PROPOSED | Added with the schema (D-037), not merged yet. `backend/alembic/env.py` connects through `app.db.session`, so the app and the migrations use the same settings. Becomes DECIDED · IN REPO once merged and tested. Alembic does not detect new CHECK constraints on existing tables, so read every migration by hand |
 | D-006 | Modular monolith, no microservices | DECIDED | |
 | D-007 | Deterministic policy engine separate from the LLM | CONFIRMED | Core of the research design |
 | D-008 | LLM provider / model | OPEN | Behind a provider-agnostic adapter; compare cost, structured output, latency, data policy |
@@ -45,6 +45,8 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | D-034 | Emergencies do not waive the quotation rule (POL-003): too few quotes gives `HUMAN_REVIEW` by a Procurement Officer | DECIDED | Decided by Maira (policy engine owner), 2026-11-08. Consistent with D-007 and D-028 |
 | D-035 | Extraction reliability is judged by `extraction_status` (schema validation result), not by a model-reported confidence score | DECIDED | Decided by Maira (policy engine owner), 2026-11-08. This is how "low-confidence" in D-029 is measured by the policy engine |
 | D-036 | Quantity is a required detail for every request, including services | DECIDED | Decided by Maira (policy engine owner), 2026-11-08 |
+| D-037 | Database schema, 19 tables in 6 migrations. Core (0001-0002): `organizations`, `users`, `procurement_requests`, `extractions`, `clarifications`, `policy_configs`, `policy_evaluations`, `audit_events`. Reference data (0003): `suppliers`, `supplier_categories`, `budgets`. Approvals (0004): `approvals`. Sourcing (0005): `rfqs`, `rfq_suppliers`, `documents`, `quotations`, `quotation_items`, `supplier_evaluations`. Ordering (0006): `purchase_orders`. Rules: every company-owned row has `organization_id` and foreign keys force both rows into the same organization; money is `NUMERIC(14,2)`; enums are text plus a CHECK and the engine's own enums are imported from `app.policy.types`; role names are plain text; `currency` has no default so a missing currency still reaches POL-900; `policy_evaluations` and `audit_events` are append-only (trigger); policy settings are versioned rows; a purchase order must match its quotation exactly and cannot exceed the request's approved amount (foreign keys and a CHECK); a quotation waiting for verification or badly extracted cannot be selected; a budget cannot be over-committed | PROPOSED | Drafted by Ghina with Claude, 2026-11-14, as the answer to Q-006. Tables for stages after 0002 follow D-038 |
+| D-038 | The schema models supplier sourcing, RFQs, quotations, supplier evaluation, budgets (finance check) and purchase orders, although CLAUDE.md lists them as deferred or optional | PROPOSED | Ghina asked for the full-project schema on 2026-11-14. This covers the schema only. Building those features still depends on Q-001 (scope and ownership), and the team should confirm it |
 
 ## Open questions (need a person to decide)
 
@@ -68,3 +70,4 @@ Rules: never silently promote PROPOSED → DECIDED. To change a decision, add a 
 | 2026-11-05 | Q-007 draft added in `docs/POLICY_RULES.md` (rules POL-001…POL-009, POL-900; all PROPOSED, demo values OPEN) | Maira Qazi |
 | 2026-11-08 | Policy rules approved: added D-032…D-036, closed Q-007 | Maira Qazi |
 | 2026-11-10 | Merged shadcn/ui and the database layer: D-005 split into D-005 (DECIDED · IN REPO) and D-005b (Alembic, PROPOSED); D-015 resolved (shadcn/ui); D-025 partly done | Claude (via Haya) |
+| 2026-11-14 | Drafted the full schema (D-037, D-038); updated D-005b (Alembic); Q-006 answered in a first version, to be approved | Claude (via Ghina) |
