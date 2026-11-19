@@ -20,16 +20,15 @@ from .cases import (
     write_lock,
 )
 from .context import (
-    PRIORITY_FOR_URGENCY,
     CaseContext,
     EvaluationContext,
     company_facts,
     load_context,
+    priority_for,
     supplier_status_for,
 )
 
 __all__ = [
-    "PRIORITY_FOR_URGENCY",
     "CaseCategory",
     "CaseContext",
     "CaseFileError",
@@ -45,6 +44,7 @@ __all__ = [
     "expected_policy_input",
     "load_cases",
     "load_context",
+    "priority_for",
     "read_cases",
     "supplier_status_for",
     "validate",

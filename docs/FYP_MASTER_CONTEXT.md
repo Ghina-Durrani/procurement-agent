@@ -74,7 +74,7 @@ Different organizations configure different rules. Each organization has isolate
 **Core (FYP-I target, December 2026) — one reliable vertical slice:**
 submit free-text request → store original → extract → validate → clarify with requester (max 2 rounds, re-validate after each reply) → detect urgency → policy outcome with rule IDs and reasons → review queue (approve / reject / request clarification) → audit history → minimal React UI → small labelled evaluation set comparing System A vs System B.
 
-**Module 1 additions (DECIDED, agreed by the project owner in chat; see `DECISIONS.md` D-028 to D-030):** urgency detection, the clarification loop, and English-only input are part of Module 1. The urgency thresholds are still OPEN (D-031).
+**Module 1 additions (DECIDED, agreed by the project owner in chat; see `DECISIONS.md` D-028 to D-030):** urgency detection, the clarification loop, and English-only input are part of Module 1. The urgency thresholds are decided (D-049: high priority within 3 days, a "due soon" tag within 7 days); the clarification round limit is still OPEN (D-031).
 
 **Deferred unless the core is stable and scope is re-confirmed:** real WhatsApp/email integration; automatic supplier outreach/RFQ sending; PDF/spreadsheet/image quote extraction; supplier discovery/ranking and quote comparison; Finance Agent integration; purchase-order generation / ERP; production-grade multi-tenant administration; RAG/vector DB; fine-tuning; multi-agent frameworks; analytics dashboards.
 

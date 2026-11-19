@@ -54,6 +54,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
 | Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
 | Extraction schema `extraction-v1` (status per field, urgency signal, one naming convention) | Maira | Done (with a fake model) | D-044. Next: evaluation cases, then System A and System B (D-045) |
+| Priority step: urgency signal + deadline → proposed priority, "due soon" tag | Maira | Done | D-049. Used by the evaluation now; the workflow will call it after clarification |
 | Evaluation cases: 80 synthetic cases, locked dev/test split, checker that runs the policy engine on every label | Maira | Done (labels draft) | D-047, `docs/EVALUATION_CASES.md`. Next: verify every label, then System A and System B (D-045) |
 
 Owners are not recorded in the repo; fill them in.
@@ -69,7 +70,7 @@ Owners are not recorded in the repo; fill them in.
 7. Plain `pytest` fails one test (`test_database_connection_works`) when the PostgreSQL container is not running. Start it with `docker compose up -d`, or run `pytest -m "not integration"`.
 8. Alembic is installed with the schema (D-005b, D-037); the migrations have not yet been run on teammates' machines.
 9. The extraction agent has not been tested on a real model, so its real accuracy is unknown.
-10. `proposed_priority` is not set yet (urgency scoring is not built). The policy engine treats a missing priority as "not an emergency", so the emergency rule cannot fire until urgency scoring exists.
+10. The priority step exists (D-049), but no request workflow calls it yet, so requests in the app still have no `proposed_priority`. The policy engine treats a missing priority as "not an emergency", so the emergency rule cannot fire in the app until the workflow calls `propose_priority` (the evaluation already does).
 11. The extraction evidence check proves a value's words really appear in the request. It cannot prove the requester told the truth, and it does not read amounts written only in words (those go to review).
 12. The Groq free tier is limited (about 8,000 tokens per minute and 200,000 tokens per day for `openai/gpt-oss-120b` at the time of writing; check the Groq console for the real numbers). Large evaluation runs must be spread over several days or use another provider.
 
@@ -77,6 +78,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-19 | Maira Qazi | Priority step in `app/services/urgency/` (D-049): deadline phrases to dates, high priority within 3 days, "due soon" tag within 7 days; the evaluation uses it; D-031 thresholds settled |
 | 2026-11-19 | Maira Qazi | Evaluation cases: 80 draft cases in `evaluation/cases/` (10 categories, 30 dev / 50 test, split locked), shared company facts in `context.json`, checker `python -m app.services.evaluation.check_cases`, `docs/EVALUATION_CASES.md`, D-047 proposed. Policy: POL-005 sends conflicting suppliers to review (D-048, example C24). 53 new tests (410 pass with the database) |
 | 2026-11-19 | Maira Qazi | Extraction schema `extraction-v1`: status, value and evidence per field, urgency signal, whole-number quantity, `delivery_location`, field-to-column mapping (D-044); added `docs/EXTRACTION_MODULE_DESIGN.md`; 30 new tests; required-field names in the database contract test now use the extraction names |
 | 2026-11-19 | Maira Qazi | Merged `main` into `feat/extraction-slice` (schema + policy update); Haya's extraction decision renumbered D-037 → D-043 |

@@ -16,6 +16,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 
 from app.policy import BudgetStatus, PolicyConfig, Priority, RecentRequest, SupplierStatus
 from app.services.extraction import UrgencyLevel
+from app.services.urgency import propose_priority
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CASES_DIR = REPO_ROOT / "evaluation" / "cases"
@@ -23,16 +24,6 @@ CONTEXT_PATH = CASES_DIR / "context.json"
 
 # Fixed IDs so the same case always builds the same policy input (reproducible runs).
 _ID_NAMESPACE = UUID("6f2c7d1e-5b0a-4c8e-9a51-0e7a2b3c4d5f")
-
-# PROPOSED (D-047): until the priority step is built (D-028, D-031), the evaluation maps the
-# urgency signal straight to a priority. Deadline-based thresholds are left out on purpose:
-# their values are still OPEN. Only EMERGENCY changes a policy outcome (POL-008).
-PRIORITY_FOR_URGENCY = {
-    UrgencyLevel.NORMAL: Priority.NORMAL,
-    UrgencyLevel.URGENT: Priority.HIGH_PRIORITY,
-    UrgencyLevel.EMERGENCY_CLAIMED: Priority.EMERGENCY,
-}
-
 
 class _Strict(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -140,3 +131,10 @@ def company_facts(
             case_id, case_context.recent_requests, context.submitted_at
         ),
     }
+
+
+def priority_for(
+    urgency: UrgencyLevel, deadline_phrase: str | None, context: EvaluationContext
+) -> Priority:
+    """The proposed priority, from the same priority step the workflow uses (D-049)."""
+    return propose_priority(urgency, deadline_phrase, context.submitted_at.date()).priority

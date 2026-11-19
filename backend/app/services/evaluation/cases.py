@@ -28,11 +28,11 @@ from app.services.extraction.schemas import EXTRACTED_FIELDS
 from .context import (
     CASES_DIR,
     CONTEXT_PATH,
-    PRIORITY_FOR_URGENCY,
     CaseContext,
     EvaluationContext,
     company_facts,
     load_context,
+    priority_for,
 )
 
 CASES_PATH = CASES_DIR / "cases.jsonl"
@@ -199,7 +199,9 @@ def expected_policy_input(case: EvaluationCase, context: EvaluationContext) -> P
         item_category=case.value_of("item_category"),
         supplier_name=supplier,
         supplier_conflict=case.status_of("supplier_name") is FieldStatus.CONFLICTING,
-        proposed_priority=PRIORITY_FOR_URGENCY[case.expected_urgency],
+        proposed_priority=priority_for(
+            case.expected_urgency, case.value_of("delivery_deadline"), context
+        ),
         **company_facts(case.case_id, supplier, case.context, context),
     )
 

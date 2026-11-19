@@ -45,7 +45,7 @@ python -m app.services.evaluation.check_cases
 Two simplifications, the same for System A and System B:
 
 - **One pass, no clarification.** No requester answers questions during the evaluation, so a required field that is not `PRESENT` goes straight to POL-001.
-- **Urgency to priority.** Until the priority step is built (D-028, D-031), `EMERGENCY_CLAIMED` counts as an emergency (POL-008), `URGENT` as high priority, `NORMAL` as normal. Deadline thresholds are left out because their values are still OPEN (D-047, PROPOSED).
+- **Urgency to priority.** The expected priority comes from the same priority step the workflow uses (D-049), with the expected urgency and deadline and the send date in `context.json`. Only `EMERGENCY` changes a policy outcome (POL-008).
 
 The checker runs the policy engine on the expected facts for every case. If a hand-written decision, rule list or role list differs from what the engine gives, it reports the case. This catches label mistakes. It also means the expected decision is the policy as coded, so the engine must stay covered by its own tests (C01-C23).
 

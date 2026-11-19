@@ -12,12 +12,12 @@ import pytest
 
 from app.policy import PolicyConfig, Priority, SupplierStatus
 from app.services.evaluation import (
-    PRIORITY_FOR_URGENCY,
     CaseContext,
     CaseFileError,
     LabelStatus,
     Split,
     load_cases,
+    expected_policy_input,
     load_context,
     read_cases,
     supplier_status_for,
@@ -317,10 +317,14 @@ def test_supplier_lookup(name: str | None, status: SupplierStatus | None) -> Non
     assert supplier_status_for(name, CONTEXT.suppliers) is status
 
 
-def test_only_a_claimed_emergency_becomes_an_emergency_priority() -> None:
-    emergencies = [level for level, priority in PRIORITY_FOR_URGENCY.items() if priority is Priority.EMERGENCY]
-    assert emergencies == [UrgencyLevel.EMERGENCY_CLAIMED]
-    assert set(PRIORITY_FOR_URGENCY) == set(UrgencyLevel)
+def test_expected_priority_comes_from_the_priority_step() -> None:
+    cases = {case.case_id: case for case in validate()[0]}
+    # Sent on Thursday 2026-11-05: "by Friday" is 1 day away, so a NORMAL request is high priority.
+    assert expected_policy_input(cases["EV-009"], CONTEXT).proposed_priority is Priority.HIGH_PRIORITY
+    # No deadline and no urgency: normal.
+    assert expected_policy_input(cases["EV-001"], CONTEXT).proposed_priority is Priority.NORMAL
+    # A claimed emergency.
+    assert expected_policy_input(cases["EV-041"], CONTEXT).proposed_priority is Priority.EMERGENCY
 
 
 def test_recent_request_money_cannot_be_a_float() -> None:
