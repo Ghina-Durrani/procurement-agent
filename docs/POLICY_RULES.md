@@ -152,7 +152,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 | Setting | Demo value |
 |---|---|
 | Currency | PKR only |
-| Required details | item description, quantity, amount, currency, reason for buying |
+| Required details | item description, quantity, amount, currency, reason for buying. In the settings these are the extraction field names: `item_description`, `quantity`, `estimated_total`, `currency`, `business_justification` (D-044) |
 | Approval limits (POL-002) | up to 50,000: none · up to 500,000: Manager · above: Senior Management |
 | Quotations (POL-003) | up to 100,000: 1 · above: 3 |
 | Split-purchase window (POL-004) | 30 days; limits watched: 50,000, 100,000, 500,000 |

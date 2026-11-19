@@ -1,8 +1,13 @@
 """Shared test data for the extraction tests. All requests and replies are made up."""
-import json
 from typing import Any
 
-from app.services.extraction import FakeLLMClient, extract_request, known_categories
+from app.services.extraction import (
+    FakeLLMClient,
+    extract_request,
+    known_categories,
+    scripted_reply,
+)
+from app.services.extraction.schemas import EXTRACTED_FIELDS
 from tests.policy.policy_factories import demo_config
 
 TEXT = (
@@ -34,16 +39,39 @@ GOOD: dict[str, Any] = {
 }
 
 
+# Keys of the simple "flat" test style that are not field values.
+_SPECIAL = {"evidence", "ambiguities", "urgency_evidence", "statuses"}
+
+
+def as_reply(flat: dict[str, Any]) -> str:
+    """Turn a simple flat dict (values + "evidence" + "ambiguities" ...) into a model reply in
+    the extraction-v1 format: every field becomes {"status", "value", "evidence"}.
+
+    Keys that are not known fields (for example "policy_outcome") are passed through as extra
+    top-level keys, so tests can check that a fooled model's additions are ignored.
+    """
+    values = {k: v for k, v in flat.items() if k in EXTRACTED_FIELDS}
+    extra = {k: v for k, v in flat.items() if k not in EXTRACTED_FIELDS and k not in _SPECIAL}
+    urgency_words = flat.get("urgency_evidence")
+    return scripted_reply(
+        values,
+        flat.get("evidence", {}),
+        statuses=flat.get("statuses"),
+        urgency=("URGENT", urgency_words) if urgency_words is not None else None,
+        notes=flat.get("ambiguities", []),
+        **extra,
+    )
+
+
 def reply(**changes: Any) -> str:
     """A model reply: the good example with some fields changed."""
-    data = {**GOOD, **changes}
-    return json.dumps(data)
+    return as_reply({**GOOD, **changes})
 
 
 def reply_without_evidence(*fields: str, **changes: Any) -> str:
     data = {**GOOD, **changes}
     data["evidence"] = {k: v for k, v in GOOD["evidence"].items() if k not in fields}
-    return json.dumps(data)
+    return as_reply(data)
 
 
 def run(replies: list[str | Exception], text: str = TEXT, **options: Any):

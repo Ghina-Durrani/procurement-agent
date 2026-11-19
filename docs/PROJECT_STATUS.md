@@ -12,7 +12,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 2 | Environment baseline | Done | Backend starts, frontend checks pass, and the backend connects to PostgreSQL (`check_connection()` test passes when a database is running). The Docker Compose container itself was not run in the audit sandbox |
 | 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | Database connection exists, but no models, migrations, or routes yet |
 | 4 | Deterministic policy engine with tests | Done | Engine and 100 tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036, D-039, D-040). Calling it from the workflow comes with the service layer |
-| 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | First slice built and tested with a fake model (`backend/app/services/extraction/`, 95 tests). **Not yet tried on a real model.** Urgency scoring and the clarification loop are not built (D-031 open) |
+| 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | Schema `extraction-v1` with a status per field (D-044) in `backend/app/services/extraction/`, tested with a fake model (125 extraction tests). **Not yet tried on a real model.** Urgency scoring (priority from evidence + deadline) and the clarification loop are not built (D-031 open) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
 | 8 | Evaluation: System A vs System B | Not started | No dataset yet |
@@ -53,6 +53,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
 | Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
 | Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
+| Extraction schema `extraction-v1` (status per field, urgency signal, one naming convention) | Maira | Done (with a fake model) | D-044. Next: evaluation cases, then System A and System B (D-045) |
 
 Owners are not recorded in the repo; fill them in.
 
@@ -75,6 +76,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-19 | Maira Qazi | Extraction schema `extraction-v1`: status, value and evidence per field, urgency signal, whole-number quantity, `delivery_location`, field-to-column mapping (D-044); added `docs/EXTRACTION_MODULE_DESIGN.md`; 30 new tests; required-field names in the database contract test now use the extraction names |
 | 2026-11-19 | Maira Qazi | Merged `main` into `feat/extraction-slice` (schema + policy update); Haya's extraction decision renumbered D-037 → D-043 |
 | 2026-11-19 | Maira Qazi | Policy engine review: approval limits and budget re-checked before the purchase order (D-039, D-040), new example cases C21 to C23, 25 new tests; workflow order fixed in `FYP_MASTER_CONTEXT.md` (validate before clarify); D-041 and D-042 proposed; one PRE_PO contract test in `tests/db` now reads the selected quotation and approved amount from the database (232 tests pass with the schema) |
 | 2026-11-12 | Haya (with Claude) | Extraction agent first slice in `backend/app/services/extraction/` with 95 tests and an offline demo; added `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS` settings (D-008, D-043) |

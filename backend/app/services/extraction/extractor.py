@@ -1,7 +1,12 @@
 """The extraction agent: request text in, checked ExtractionResult out.
 
-Flow: ask the model -> parse its JSON -> validate the shape -> verify every value against
+Flow: ask the model -> parse its JSON -> validate the shape -> verify every field against
 the original request -> work out the missing required details -> return a status.
+
+Every field ends with a status (PRESENT, MISSING, AMBIGUOUS, CONFLICTING). The model proposes
+it; our code only keeps PRESENT when the value is backed by words that really appear in the
+request. A value without such words becomes MISSING; a quote that exists but does not match
+the value becomes AMBIGUOUS, so a person or the clarification loop looks at it.
 
 Rules this file keeps (CLAUDE.md hard rules 1-3 and 7):
 - It never raises to the caller. Any failure becomes status FAILED or INVALID, which the
@@ -13,6 +18,7 @@ import json
 import re
 from collections.abc import Sequence
 from decimal import Decimal, InvalidOperation
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -23,9 +29,17 @@ from .prompt import build_system_prompt, build_user_message
 from .schemas import (
     EXTRACTED_FIELDS,
     FIELDS_WITH_EVIDENCE,
+    ExtractedField,
     ExtractionResult,
-    LLMExtraction,
+    FieldStatus,
+    LLMReply,
+    UrgencyLevel,
+    UrgencySignal,
 )
+
+PRESENT = FieldStatus.PRESENT
+MISSING = FieldStatus.MISSING
+AMBIGUOUS = FieldStatus.AMBIGUOUS
 
 # The first answer may be malformed; one more try is allowed, then we stop (free tiers are small).
 DEFAULT_MAX_ATTEMPTS = 2
@@ -100,8 +114,8 @@ def _stop(
     )
 
 
-def _parse(raw: str) -> tuple[LLMExtraction | None, str]:
-    """Turn the model's text into LLMExtraction. Returns (None, why) when it cannot."""
+def _parse(raw: str) -> tuple[LLMReply | None, str]:
+    """Turn the model's text into LLMReply. Returns (None, why) when it cannot."""
     text = raw.strip()
     fenced = _FENCE.match(text)
     if fenced:
@@ -114,7 +128,7 @@ def _parse(raw: str) -> tuple[LLMExtraction | None, str]:
     if not isinstance(data, dict):
         return None, "The model answer was not a JSON object."
     try:
-        return LLMExtraction.model_validate(data), ""
+        return LLMReply.model_validate(data), ""
     except ValidationError as error:
         # Only field names are reported, never the values.
         names = sorted({str(e["loc"][0]) for e in error.errors() if e["loc"]})
@@ -122,57 +136,106 @@ def _parse(raw: str) -> tuple[LLMExtraction | None, str]:
 
 
 def _check(
-    parsed: LLMExtraction,
+    parsed: LLMReply,
     text: str,
     categories: Sequence[str],
     required_fields: Sequence[str],
 ) -> ExtractionResult:
-    values: dict[str, object] = {name: getattr(parsed, name) for name in EXTRACTED_FIELDS}
-    notes = [_short(note) for note in parsed.ambiguities[:_MAX_NOTES] if note.strip()]
-    kept_evidence: dict[str, str] = {}
+    notes = [_short(note) for note in parsed.notes[:_MAX_NOTES] if note.strip()]
+    fields: dict[str, ExtractedField] = {}
+    for name in EXTRACTED_FIELDS:
+        field, note = _check_field(name, getattr(parsed, name), text, categories)
+        fields[name] = field
+        if note:
+            notes.append(note)
 
-    for field in FIELDS_WITH_EVIDENCE:
-        if values[field] is None:
-            continue
-        quote = parsed.evidence.get(field)
-        problem = _verify(field, values[field], quote, text)
-        if problem:
-            values[field] = None
-            notes.append(problem)
-        else:
-            kept_evidence[field] = " ".join((quote or "").split())
+    urgency, urgency_note = _check_urgency(parsed, text)
+    if urgency_note:
+        notes.append(urgency_note)
 
-    if values["urgency_evidence"] is not None and not _contains(text, str(values["urgency_evidence"])):
-        values["urgency_evidence"] = None
-        notes.append("urgency_evidence: the quoted words do not appear in the request; discarded.")
-
-    values["item_category"], category_note = _normalise_category(values["item_category"], categories)
-    if category_note:
-        notes.append(category_note)
-    if isinstance(values["currency"], str):
-        values["currency"] = values["currency"].strip().upper()
-
-    # A required name we do not know how to fill counts as missing: fail closed.
-    missing = [name for name in required_fields if values.get(name) is None]
+    # Anything not PRESENT is still missing for the policy engine (POL-001). A required name we
+    # do not know how to fill also counts as missing: fail closed.
+    missing = [
+        name
+        for name in required_fields
+        if name not in fields or fields[name].status is not PRESENT
+    ]
     return ExtractionResult(
         status=ExtractionStatus.VALID,
+        fields=fields,
+        urgency=urgency,
         missing_fields=missing,
         ambiguities=notes[: _MAX_NOTES * 2],
-        evidence=kept_evidence,
-        **values,  # type: ignore[arg-type]
     )
 
 
-def _verify(field: str, value: object, quote: str | None, text: str) -> str | None:
-    """Return a note if the value cannot be backed by the request, else None."""
+def _check_field(
+    name: str, reported: Any, text: str, categories: Sequence[str]
+) -> tuple[ExtractedField, str | None]:
+    status: FieldStatus = reported.status
+    value = reported.value
+    quote = reported.evidence
+    # The quote is only kept if it really appears in the request.
+    found = quote if quote and _contains(text, quote) else None
+
+    if status is not PRESENT:
+        # value stays None unless PRESENT (design rule). A quote for an unclear or conflicting
+        # detail is useful for the clarification question, so it is kept when it is real.
+        note = None
+        if quote and not found:
+            note = f"{name}: the quoted words do not appear in the request; discarded."
+        return ExtractedField(status=status, evidence=found), note
+
+    if value is None:
+        return ExtractedField(status=MISSING), None
+
+    if name == "item_category":
+        code, note = _normalise_category(value, categories)
+        if code is None:
+            return ExtractedField(status=MISSING), note
+        return ExtractedField(status=PRESENT, value=code, evidence=found), None
+
+    if name == "currency" and isinstance(value, str):
+        value = value.strip().upper()
+
+    if name in FIELDS_WITH_EVIDENCE:
+        problem = _verify(name, value, quote, text)
+        if problem is not None:
+            note, quote_was_real = problem
+            # A real quote that does not match the value: the request says something, but not
+            # clearly this. Otherwise there is no proof at all, so the detail counts as missing.
+            status = AMBIGUOUS if quote_was_real else MISSING
+            return ExtractedField(status=status, evidence=found), note
+        # _verify passed, so the quote is real and non-empty.
+        evidence = " ".join((found or "").split())
+        return ExtractedField(status=PRESENT, value=value, evidence=evidence), None
+
+    return ExtractedField(status=PRESENT, value=value, evidence=found), None
+
+
+def _check_urgency(parsed: LLMReply, text: str) -> tuple[UrgencySignal, str | None]:
+    level, quote = parsed.urgency.level, parsed.urgency.evidence
+    if quote and _contains(text, quote):
+        return UrgencySignal(level=level, evidence=" ".join(quote.split())), None
+    note = None
+    if quote:
+        note = "urgency_evidence: the quoted words do not appear in the request; discarded."
+    elif level is not UrgencyLevel.NORMAL:
+        note = "urgency: no supporting words from the request were given; reported as NORMAL."
+    # Urgency without real words from the request is not reported (it is only a signal).
+    return UrgencySignal(), note
+
+
+def _verify(field: str, value: object, quote: str | None, text: str) -> tuple[str, bool] | None:
+    """Return (note, quote_was_real) if the value cannot be backed by the request, else None."""
     if not quote or not quote.strip():
-        return f"{field}: no supporting words from the request were given; value discarded."
+        return f"{field}: no supporting words from the request were given; value discarded.", False
     if not _contains(text, quote):
-        return f"{field}: the quoted words do not appear in the request; value discarded."
+        return f"{field}: the quoted words do not appear in the request; value discarded.", False
     if field == "estimated_total" and not _number_matches(value, quote, required=True):
-        return f"{field}: the amount does not match the quoted words; value discarded."
+        return f"{field}: the amount does not match the quoted words; value discarded.", True
     if field == "quantity" and not _number_matches(value, quote, required=False):
-        return f"{field}: the number does not match the quoted words; value discarded."
+        return f"{field}: the number does not match the quoted words; value discarded.", True
     return None
 
 
@@ -187,7 +250,7 @@ def _number_matches(value: object, quote: str, *, required: bool) -> bool:
     required=True (money): a quote with no digits at all fails, because we cannot check it.
     required=False (quantity): words such as "two" are accepted on the quote alone.
     """
-    if not isinstance(value, Decimal):
+    if isinstance(value, bool) or not isinstance(value, (int, Decimal)):
         return False
     candidates: list[Decimal] = []
     for number, suffix in _NUMBER.findall(quote):

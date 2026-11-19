@@ -40,8 +40,9 @@ from app.models.enums import (
     SupplierStatus,
 )
 from app.policy import evaluate
-from app.policy.types import PolicyConfig as EngineConfig
 from app.policy.types import BudgetStatus, PolicyResult, RecentRequest
+from app.policy.types import PolicyConfig as EngineConfig
+from app.services.extraction import REQUEST_COLUMN_FOR_FIELD
 
 pytestmark = pytest.mark.integration
 
@@ -54,12 +55,13 @@ def demo_config(org_id: Any) -> dict[str, Any]:
         "organization_id": str(org_id),
         "policy_version": "demo-v1",
         "accepted_currencies": ["PKR"],
+        # Extraction field names (D-044); REQUEST_COLUMN_FOR_FIELD maps them to columns.
         "required_fields": [
             "item_description",
             "quantity",
-            "estimated_amount",
+            "estimated_total",
             "currency",
-            "purpose",
+            "business_justification",
         ],
         "approval_tiers": [
             {"up_to": "50000", "approver_role": None},
@@ -251,10 +253,16 @@ def test_a_stored_policy_version_loads_back_into_the_engine(session: Session, wo
 
 
 def test_required_field_names_are_real_request_columns(world) -> None:
-    """POL-001 compares names in missing_fields with config.required_fields as plain text."""
+    """POL-001 compares names in missing_fields with config.required_fields as plain text.
+
+    Those names are the extraction field names (the extractor writes missing_fields), and
+    each one maps to a real column through REQUEST_COLUMN_FOR_FIELD.
+    """
     _, _, config_row, _ = world
     columns = {column.name for column in ProcurementRequest.__table__.columns}
-    assert set(config_row.config["required_fields"]) <= columns
+    required = config_row.config["required_fields"]
+    assert set(required) <= set(REQUEST_COLUMN_FOR_FIELD)
+    assert {REQUEST_COLUMN_FOR_FIELD[name] for name in required} <= columns
 
 
 def test_every_engine_enum_value_is_accepted_by_the_database(session: Session) -> None:

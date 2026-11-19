@@ -1,12 +1,18 @@
 """Tests for extract_request: normal cases, bad model output, failures and fabricated values."""
-import json
 from decimal import Decimal
 
 import pytest
 
 from app.policy import ExtractionStatus
 from app.services.extraction import LLMAuthError, LLMRateLimited, LLMRequestFailed
-from tests.extraction.extraction_helpers import GOOD, TEXT, reply, reply_without_evidence, run
+from tests.extraction.extraction_helpers import (
+    GOOD,
+    TEXT,
+    as_reply,
+    reply,
+    reply_without_evidence,
+    run,
+)
 
 VALID = ExtractionStatus.VALID
 INVALID = ExtractionStatus.INVALID
@@ -35,7 +41,11 @@ def test_money_keeps_exact_decimal_places():
     text = "Need 10 office chairs, total PKR 1,500.50."
     evidence = {"quantity": "10 office chairs", "estimated_total": "PKR 1,500.50"}
     # Written by hand so the number stays exactly "1500.50" in the JSON text.
-    raw = '{"quantity": 10, "estimated_total": 1500.50, "evidence": %s}' % json.dumps(evidence)
+    raw = (
+        '{"quantity": {"status": "PRESENT", "value": 10, "evidence": "%s"}, '
+        '"estimated_total": {"status": "PRESENT", "value": 1500.50, "evidence": "%s"}}'
+        % (evidence["quantity"], evidence["estimated_total"])
+    )
     result, _ = run([raw], text=text)
     assert result.status is VALID
     assert result.estimated_total == Decimal("1500.50")
@@ -55,7 +65,7 @@ def test_reply_inside_a_code_fence_is_accepted():
 
 def test_unknown_extra_keys_from_the_model_are_ignored():
     # A fooled model might add a decision. It must never reach the result.
-    raw = json.dumps({**GOOD, "policy_outcome": "CONTINUE", "approved": True})
+    raw = reply(policy_outcome="CONTINUE", approved=True)
     result, _ = run([raw])
     assert result.status is VALID
     assert "policy_outcome" not in result.model_dump()
@@ -136,8 +146,8 @@ def test_made_up_amount_with_a_made_up_quote_is_discarded():
 )
 def test_common_ways_of_writing_money_are_accepted(text, quote, value):
     evidence = {"estimated_total": quote, "quantity": "4 monitors", "item_description": "4 monitors"}
-    raw = json.dumps({"estimated_total": value, "quantity": 4, "item_description": "monitors",
-                      "evidence": evidence})
+    raw = as_reply({"estimated_total": value, "quantity": 4, "item_description": "monitors",
+                    "evidence": evidence})
     result, _ = run([raw], text=text)
     assert result.estimated_total == Decimal(value)
 
@@ -145,7 +155,7 @@ def test_common_ways_of_writing_money_are_accepted(text, quote, value):
 def test_amount_written_only_in_words_is_discarded_because_it_cannot_be_checked():
     text = "Need 4 monitors, budget is fifty thousand rupees."
     evidence = {"estimated_total": "fifty thousand rupees"}
-    raw = json.dumps({"estimated_total": 50000, "evidence": evidence})
+    raw = as_reply({"estimated_total": 50000, "evidence": evidence})
     result, _ = run([raw], text=text)
     assert result.estimated_total is None
 
@@ -153,7 +163,7 @@ def test_amount_written_only_in_words_is_discarded_because_it_cannot_be_checked(
 def test_quantity_in_words_is_accepted_on_the_quote_alone():
     text = "Please order two laptops for Rs 200,000."
     evidence = {"quantity": "two laptops", "estimated_total": "Rs 200,000"}
-    raw = json.dumps({"quantity": 2, "estimated_total": 200000, "evidence": evidence})
+    raw = as_reply({"quantity": 2, "estimated_total": 200000, "evidence": evidence})
     result, _ = run([raw], text=text)
     assert result.quantity == Decimal(2)
 
@@ -207,6 +217,13 @@ def test_bad_json_then_good_json_is_accepted_on_the_second_try():
         '{"quantity": true}',
         '{"estimated_total": NaN}',
         "{" * 5000,
+        # The same mistakes inside the extraction-v1 field objects.
+        '{"quantity": {"status": "PRESENT", "value": "many"}}',
+        '{"quantity": {"status": "PRESENT", "value": -3}}',
+        '{"quantity": {"status": "PRESENT", "value": true}}',
+        '{"quantity": {"status": "PRESENT", "value": 2.5}}',
+        '{"estimated_total": {"status": "PRESENT", "value": NaN}}',
+        '{"quantity": {"status": "MAYBE", "value": 3}}',
     ],
 )
 def test_unusable_output_twice_gives_invalid_not_a_crash(bad):

@@ -11,9 +11,9 @@ The company settings are the demo values from the policy tests. Supplier and bud
 answers are PRETEND here because the supplier list and budget lookups are not built yet.
 """
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from app.policy import BudgetStatus, PolicyConfig, PolicyResult, SupplierStatus, evaluate
@@ -26,6 +26,7 @@ from app.services.extraction import (
     build_llm_client,
     extract_request,
     known_categories,
+    scripted_reply,
     to_policy_input,
 )
 
@@ -36,8 +37,16 @@ except ImportError:  # pragma: no cover
     sys.exit("Run this from the backend/ folder:  python -m app.services.extraction.demo")
 
 
-def _reply(fields: dict, evidence: dict, **extra: object) -> str:
-    return json.dumps({**fields, "evidence": evidence, **extra})
+def _reply(
+    fields: dict[str, Any],
+    evidence: dict[str, str],
+    statuses: dict[str, str] | None = None,
+    **extra: Any,
+) -> str:
+    # The demo writes replies as simple values; scripted_reply turns them into extraction-v1.
+    urgency_words = fields.pop("urgency_evidence", None)
+    urgency = ("URGENT", urgency_words) if urgency_words else None
+    return scripted_reply(fields, evidence, statuses=statuses, urgency=urgency, **extra)
 
 
 # Each case: (title, request text, scripted model replies). The replies are NOT from a real
@@ -71,7 +80,8 @@ OFFLINE_CASES: list[tuple[str, str, list[str | Exception]]] = [
             _reply(
                 {"item_description": "laptops", "item_category": "IT_HARDWARE",
                  "urgency_evidence": "asap"},
-                {"item_description": "laptops"},
+                {"item_description": "laptops", "quantity": "some laptops"},
+                statuses={"quantity": "AMBIGUOUS"},
             )
         ],
     ),
@@ -188,6 +198,14 @@ def print_extraction(result: ExtractionResult) -> None:
     ]
     for label, value in rows:
         print(f"    {label:<14}: {value if value is not None else '-'}")
+    unclear = [
+        f"{name} ({field.status.value})"
+        for name, field in result.fields.items()
+        if field.status.value in ("AMBIGUOUS", "CONFLICTING")
+    ]
+    if unclear:
+        print(f"    {'unclear':<14}: {', '.join(unclear)}")
+    print(f"    {'urgency':<14}: {result.urgency.level.value}")
     print(f"    {'still missing':<14}: {', '.join(result.missing_fields) or '(nothing)'}")
     for note in result.ambiguities:
         print(f"    note          : {note}")
