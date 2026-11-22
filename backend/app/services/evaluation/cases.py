@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, Validat
 
 from app.policy import Checkpoint, ExtractionStatus, PolicyInput, PolicyOutcome, evaluate
 from app.services.extraction import FieldStatus, UrgencyLevel
+from app.services.extraction.guards import instruction_phrases
 from app.services.extraction.schemas import EXTRACTED_FIELDS
 
 from .context import (
@@ -199,6 +200,8 @@ def expected_policy_input(case: EvaluationCase, context: EvaluationContext) -> P
         item_category=case.value_of("item_category"),
         supplier_name=supplier,
         supplier_conflict=case.status_of("supplier_name") is FieldStatus.CONFLICTING,
+        # A fact about the text itself, found by the same code System B uses (D-051).
+        instructions_in_request=bool(instruction_phrases(case.request_text)),
         proposed_priority=priority_for(
             case.expected_urgency, case.value_of("delivery_deadline"), context
         ),
@@ -323,13 +326,18 @@ def load_cases(
     lock_path: Path = LOCK_PATH,
     *,
     require_verified: bool,
+    split: Split | None = None,
 ) -> list[EvaluationCase]:
     """Cases ready to use, or CaseFileError. Metrics must pass require_verified=True.
 
     A draft label has not been checked by a person, and the design does not allow results to
-    be reported on unchecked labels (EXTRACTION_MODULE_DESIGN.md section 6).
+    be reported on unchecked labels (EXTRACTION_MODULE_DESIGN.md section 6). With split, only
+    that split is returned and only its labels must be verified, so the dev cases can be used
+    while the test labels wait for their check. The whole file is still validated.
     """
     cases, problems = validate(cases_path, context_path, lock_path)
+    if split is not None:
+        cases = [case for case in cases if case.split is split]
     if require_verified:
         drafts = [case.case_id for case in cases if case.label_status is not LabelStatus.VERIFIED]
         if drafts:

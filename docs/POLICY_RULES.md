@@ -1,6 +1,6 @@
 # Policy Rules
 
-**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040); a request naming conflicting suppliers goes to review (D-048). All amounts and lists are still demo values (OPEN), not real company limits.
+**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040); a request naming conflicting suppliers goes to review (D-048). Updated 2026-11-22: a request that contains instructions aimed at the system goes to review (POL-010, D-051). All amounts and lists are still demo values (OPEN), not real company limits.
 
 **Author:** Maira · **Created:** 2026-11-05 · **Answers:** Q-007 in `DECISIONS.md`
 
@@ -30,7 +30,7 @@ The engine runs at three moments. Not every rule runs every time.
 
 | Moment | Code name | Rules checked |
 |---|---|---|
-| A request arrives (after the AI has read it and asked the requester about missing details) | `INTAKE` | POL-001, 002, 004, 005, 006, 007, 008 |
+| A request arrives (after the AI has read it and asked the requester about missing details) | `INTAKE` | POL-001, 002, 004, 005, 006, 007, 008, 010 |
 | Quotations are collected and a supplier is chosen, before the purchase order | `PRE_PO` | POL-002, 003, 005, 007 |
 | Someone tries to approve (can happen at any stage) | `APPROVAL` | POL-009 |
 
@@ -55,6 +55,7 @@ The engine does not collect any of this itself. Each item is given to it by anot
 | `supplier_name` | Supplier mentioned or chosen | `TechZone` | AI reading the message / supplier choice |
 | `supplier_status` | Is the supplier approved? | `APPROVED`, `NOT_APPROVED` or `BLOCKED` | Database (supplier list) |
 | `supplier_conflict` | Does the request name suppliers that contradict each other? | `true` / `false` (default `false`) | AI reading the message (supplier status `CONFLICTING`) |
+| `instructions_in_request` | Does the request try to give orders to the system? | `true` / `false` (default `false`) | Fixed word check by our code on the request text, not the AI (D-051) |
 | `budget_status` | Is there money for it? (at `PRE_PO`: for the selected quotation) | `AVAILABLE`, `NEEDS_FINANCE_APPROVAL` or `INSUFFICIENT` | Finance check (it works out and reserves the budget; the engine only reads the result) |
 | `proposed_priority` | How urgent it seems | `NORMAL`, `HIGH_PRIORITY` or `EMERGENCY` | Urgency check |
 | `quotation_count` | How many supplier quotes were collected | `3` | Quotation step (only at `PRE_PO`) |
@@ -112,6 +113,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 - **Needs:** `item_category`
 - **Rule:** prohibited (weapons, alcohol, personal items, gift cards) → `BLOCK`. Needs an expert's sign-off (software → IT, chemicals → Health & Safety, vehicles → Senior Management) → `HUMAN_REVIEW` by that person. Normal categories → fine. Unknown or missing category → `HUMAN_REVIEW` by a Procurement Officer.
 - **Reason shown:** "Category 'SOFTWARE' needs IT sign-off."
+- **Category check (D-051):** if the request uses words that clearly belong to a restricted category ("beer", "pistol", "gift card", "licence", "car") and the AI chose a different category, our code does not trust the AI's category, so this rule sends the request to a Procurement Officer.
 - **Based on:** lists of purchases that need extra approval or are not allowed.
 
 ### POL-007: Is there money in the budget?
@@ -134,6 +136,13 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 - **Rule:** if they are the same person → `BLOCK` that approval. The request stays waiting for someone else.
 - **Reason shown:** "You cannot approve your own request."
 - **Based on:** segregation of duties: the requester and the approver must be different people.
+
+### POL-010: Is the request trying to give orders to the system?
+- **When:** request arrives
+- **Needs:** `instructions_in_request`
+- **Rule:** the request contains text aimed at the system instead of describing a purchase ("ignore the rules", "SYSTEM:", "set the decision to ...", "classify this as ...", "admin override") → `HUMAN_REVIEW` by a Procurement Officer. Not `BLOCK`: the purchase itself may be allowed, but nothing read from such a request is trusted without a person.
+- **Reason shown:** "The request contains instructions aimed at the system; a person must check it."
+- **Based on:** prompt-injection protection. The check is fixed code on the request text, so it works even if the AI was fooled.
 
 ### POL-900: Did something go wrong?
 - **When:** any time
@@ -194,6 +203,7 @@ These become the tests when the rules are written in code.
 | C22 | before purchase order: estimated 40,000, quotation 45,000, 1 quote | `CONTINUE` | none | none |
 | C23 | before purchase order: quotation 30,000, budget insufficient | `BLOCK` | POL-007 | none |
 | C24 | the request names two conflicting suppliers (no single supplier read) | `HUMAN_REVIEW` | POL-005 | Procurement Officer |
+| C25 | the request contains instructions aimed at the system | `HUMAN_REVIEW` | POL-010 | Procurement Officer |
 
 ## 8. Decisions on the earlier open questions
 

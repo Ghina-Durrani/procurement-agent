@@ -15,7 +15,7 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | Schema `extraction-v1` with a status per field (D-044) in `backend/app/services/extraction/`, tested with a fake model (125 extraction tests). **Not yet tried on a real model.** Urgency scoring (priority from evidence + deadline) and the clarification loop are not built (D-031 open) |
 | 6 | Human review + audit | Not started | |
 | 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
-| 8 | Evaluation: System A vs System B | In progress | 80 cases and a checker (D-047); 30 dev labels verified, 50 test labels draft; System A, System B and metrics not built |
+| 8 | Evaluation: System A vs System B | In progress | 80 cases and a checker (D-047); 30 dev labels verified, 50 test labels draft; System A, System B and metrics built and dry-run (D-050); no real-model run yet |
 | 9 | Demo/report readiness | Not started | |
 
 ## 2. What is built (IN REPO)
@@ -55,6 +55,8 @@ Living progress record. Every Claude updates this when a task changes state. Do 
 | Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
 | Extraction schema `extraction-v1` (status per field, urgency signal, one naming convention) | Maira | Done (with a fake model) | D-044. Next: evaluation cases, then System A and System B (D-045) |
 | Priority step: urgency signal + deadline → proposed priority, "due soon" tag | Maira | Done | D-049. Used by the evaluation now; the workflow will call it after clarification |
+| Fixes for two weak spots: category word check, POL-010 for instructions aimed at the system | Maira | Done | D-051, example C25. Labels of the 8 prompt-injection cases updated |
+| Experiment: System A (AI only), System B runner, metrics, rate-limit retry, resumable runs | Maira | Done (fake model only) | D-050. Next: real-model dev runs with a Groq key, then prompt tuning, freeze, verify test labels, one final run |
 | Evaluation cases: 80 synthetic cases, locked dev/test split, checker that runs the policy engine on every label | Maira | Done (30 dev labels verified, 50 test draft) | D-047, `docs/EVALUATION_CASES.md`. Next: System A and System B (D-045); verify the test labels before the final run |
 
 Owners are not recorded in the repo; fill them in.
@@ -78,6 +80,8 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-22 | Maira Qazi | D-051: category word check in extraction (`guards.py`), new rule POL-010 (instructions aimed at the system) in the policy engine and in System A's rules, example C25; labels of the 8 prompt-injection cases updated (EV-072 now `HUMAN_REVIEW`); 50 new tests (551 pass with the database) |
+| 2026-11-22 | Maira Qazi | Experiment built (D-050): System A prompt and runner, System B runner, `run` and `metrics` commands, `RetryingLLMClient` for rate limits, shared `FIELD_RULES` (System B's prompt unchanged byte for byte), split-aware `load_cases`; dry runs reproduce every expected answer; 41 new tests (501 pass with the database); two weak spots of System B found (fixed by D-051) |
 | 2026-11-22 | Maira Qazi | Verified the labels of the 30 dev evaluation cases; the 50 test cases stay draft until before the final run |
 | 2026-11-19 | Maira Qazi | Priority step in `app/services/urgency/` (D-049): deadline phrases to dates, high priority within 3 days, "due soon" tag within 7 days; the evaluation uses it; D-031 thresholds settled |
 | 2026-11-19 | Maira Qazi | Evaluation cases: 80 draft cases in `evaluation/cases/` (10 categories, 30 dev / 50 test, split locked), shared company facts in `context.json`, checker `python -m app.services.evaluation.check_cases`, `docs/EVALUATION_CASES.md`, D-047 proposed. Policy: POL-005 sends conflicting suppliers to review (D-048, example C24). 53 new tests (410 pass with the database) |

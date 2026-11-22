@@ -1,0 +1,2 @@
+# Dry runs with the fake model test the plumbing only; never commit them.
+*-fake/

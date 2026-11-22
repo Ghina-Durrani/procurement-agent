@@ -62,6 +62,7 @@ def to_policy_input(
         supplier_name=result.supplier_name,
         supplier_status=supplier_status,
         supplier_conflict=result.field_status("supplier_name") is FieldStatus.CONFLICTING,
+        instructions_in_request=bool(result.instructions_found),
         budget_status=budget_status,
         proposed_priority=proposed_priority,
         recent_requests=list(recent_requests),

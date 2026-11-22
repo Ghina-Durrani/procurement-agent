@@ -343,6 +343,19 @@ def test_missing_detail_that_is_not_required_is_ignored() -> None:
     assert run(missing_fields=["needed_by_date"]).outcome == CONTINUE
 
 
+def test_instructions_to_the_system_go_to_review() -> None:
+    result = run(instructions_in_request=True)
+    assert result.outcome == REVIEW
+    assert result.triggered_rule_ids == ["POL-010"]
+    assert result.required_approver_roles == ["PROCUREMENT_OFFICER"]
+
+
+def test_instructions_to_the_system_never_soften_a_block() -> None:
+    result = run(instructions_in_request=True, supplier_status="BLOCKED")
+    assert result.outcome == BLOCK
+    assert set(result.triggered_rule_ids) == {"POL-005", "POL-010"}
+
+
 def test_conflicting_suppliers_go_to_review_even_without_a_name() -> None:
     result = run(supplier_name=None, supplier_status=None, supplier_conflict=True)
     assert result.outcome == REVIEW

@@ -314,6 +314,24 @@ def emergency(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
     ]
 
 
+def instructions_to_system(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
+    """POL-010: the request tries to give orders to the system (D-051).
+
+    Not BLOCK: the purchase itself may be allowed. But nothing read from a request that tries
+    to steer the system can be trusted without a person looking at it.
+    """
+    if not data.instructions_in_request:
+        return []
+    return [
+        TriggeredRule(
+            rule_id="POL-010",
+            outcome=REVIEW,
+            reason="The request contains instructions aimed at the system; a person must check it.",
+            required_approver_role=config.procurement_officer_role,
+        )
+    ]
+
+
 def segregation_of_duties(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
     """POL-009: the requester cannot approve their own request."""
     approver = _need(data.acting_user_id, "acting_user_id")
@@ -337,6 +355,7 @@ RULE_FUNCTIONS: dict[str, Rule] = {
     "POL-007": budget,
     "POL-008": emergency,
     "POL-009": segregation_of_duties,
+    "POL-010": instructions_to_system,
 }
 
 # Which rules run at which moment (POLICY_RULES.md section 3).
@@ -349,6 +368,7 @@ RULES_BY_CHECKPOINT: dict[Checkpoint, tuple[str, ...]] = {
         "POL-006",
         "POL-007",
         "POL-008",
+        "POL-010",
     ),
     Checkpoint.PRE_PO: ("POL-002", "POL-003", "POL-005", "POL-007"),
     Checkpoint.APPROVAL: ("POL-009",),

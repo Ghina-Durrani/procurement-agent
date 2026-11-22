@@ -20,6 +20,7 @@ from .llm import (
     LLMRateLimited,
     LLMRequestFailed,
 )
+from .retrying import RetryingLLMClient
 from .schemas import (
     REQUEST_COLUMN_FOR_FIELD,
     SCHEMA_VERSION,
@@ -45,6 +46,7 @@ __all__ = [
     "LLMNotConfigured",
     "LLMRateLimited",
     "LLMRequestFailed",
+    "RetryingLLMClient",
     "build_llm_client",
     "extract_request",
     "known_categories",

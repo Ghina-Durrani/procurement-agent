@@ -24,6 +24,7 @@ from pydantic import ValidationError
 
 from app.policy import ExtractionStatus
 
+from .guards import instruction_phrases, restricted_categories_mentioned
 from .llm import LLMClient, LLMError
 from .prompt import build_system_prompt, build_user_message
 from .schemas import (
@@ -72,6 +73,20 @@ def extract_request(
 ) -> ExtractionResult:
     """Extract the details of one request. See the module docstring for the guarantees."""
     text = request_text.strip() if isinstance(request_text, str) else ""
+    result = _extract(text, llm, categories, required_fields, max_chars, max_attempts)
+    # Checked on the text itself, so it holds even when the model failed or was fooled.
+    found = instruction_phrases(text) if text else []
+    return result.model_copy(update={"instructions_found": found}) if found else result
+
+
+def _extract(
+    text: str,
+    llm: LLMClient,
+    categories: Sequence[str],
+    required_fields: Sequence[str],
+    max_chars: int,
+    max_attempts: int,
+) -> ExtractionResult:
     if not text:
         return _stop(ExtractionStatus.INVALID, required_fields, "The request text is empty.")
     if len(text) > max_chars:
@@ -149,6 +164,10 @@ def _check(
         if note:
             notes.append(note)
 
+    category_note = _guard_category(fields, text)
+    if category_note:
+        notes.append(category_note)
+
     urgency, urgency_note = _check_urgency(parsed, text)
     if urgency_note:
         notes.append(urgency_note)
@@ -166,6 +185,24 @@ def _check(
         urgency=urgency,
         missing_fields=missing,
         ambiguities=notes[: _MAX_NOTES * 2],
+    )
+
+
+def _guard_category(fields: dict[str, ExtractedField], text: str) -> str | None:
+    """Keep the model's category only if it agrees with restricted-item words in the request.
+
+    "24 bottles of beer" can only be ALCOHOL. If the model chose anything else (or was told to),
+    the category becomes CONFLICTING, so a person checks it (POL-006). Never the other way:
+    the words never set a category by themselves.
+    """
+    mentioned = restricted_categories_mentioned(text)
+    field = fields["item_category"]
+    if not mentioned or field.status is not PRESENT or field.value in mentioned:
+        return None
+    fields["item_category"] = ExtractedField(status=FieldStatus.CONFLICTING, evidence=field.evidence)
+    return (
+        f"item_category: the request uses words of {', '.join(sorted(mentioned))}, but the model "
+        f"chose {field.value}; sent for checking."
     )
 
 

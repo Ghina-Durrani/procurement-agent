@@ -242,6 +242,9 @@ class ExtractionResult(BaseModel):
     ambiguities: list[str] = Field(default_factory=list)
     # Why the status is INVALID or FAILED (never contains the request text).
     problems: list[str] = Field(default_factory=list)
+    # Parts of the request that read like orders to the system, found by code (D-051).
+    # The policy engine sends any such request to a person (POL-010).
+    instructions_found: list[str] = Field(default_factory=list)
 
     def value(self, name: str) -> Any:
         """The field's value if it is PRESENT, otherwise None."""

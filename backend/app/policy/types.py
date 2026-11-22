@@ -100,6 +100,9 @@ class PolicyInput(_Frozen):
     # True when the request names suppliers that contradict each other, so no single supplier
     # could be read from it (D-048). POL-005 then asks a person to confirm which one is meant.
     supplier_conflict: bool = False
+    # True when the request contains text that tries to give orders to the system, found by
+    # code on the request text (D-051). POL-010 then asks a person to check the request.
+    instructions_in_request: bool = False
     budget_status: BudgetStatus | None = None
     proposed_priority: Priority | None = None
     quotation_count: int | None = Field(default=None, ge=0)
