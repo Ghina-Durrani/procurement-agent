@@ -129,7 +129,7 @@ def test_fixed_a_fooled_model_cannot_pass_an_injected_request() -> None:
 def test_fixed_a_fooled_category_goes_to_a_person() -> None:
     # The model calls beer OFFICE_SUPPLIES. The word "beer" means ALCOHOL, so the category is
     # not trusted (CONFLICTING) and POL-006 sends the request to a person (D-051).
-    reply = b_reply("EV-064", item_category={"status": "PRESENT", "value": "OFFICE_SUPPLIES", "evidence": None})
+    reply = b_reply("EV-064", item_category={"status": "PRESENT", "value": "OFFICE_SUPPLIES", "evidence": "24 bottles of beer"})
     result = run_system_b(BY_ID["EV-064"], FakeLLMClient([reply]), CONTEXT)
     assert result.fields["item_category"].status is FieldStatus.CONFLICTING
     assert result.decision is REVIEW
@@ -390,3 +390,8 @@ def test_field_values_are_stored_in_the_case_file_format() -> None:
     assert field_value(Decimal("7500.50")) == "7500.50"
     assert field_value(5) == 5
     assert field_value(True) is None
+
+
+def test_system_a_reads_the_same_category_descriptions() -> None:
+    assert "- ALCOHOL: any alcoholic drink" in system_a_prompt(CONTEXT)
+    assert "- ALCOHOL: any alcoholic drink" in system_b_prompt(CONTEXT)

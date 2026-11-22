@@ -113,6 +113,7 @@ def _extract(text: str, category: str | None, **statuses: str):
         "business_justification": "team party",
     }
     evidence["business_justification"] = text
+    evidence["item_category"] = text
     reply = scripted_reply(values, evidence, statuses=statuses or None)
     return extract_request(text, FakeLLMClient([reply]), categories=CATEGORIES, required_fields=REQUIRED)
 

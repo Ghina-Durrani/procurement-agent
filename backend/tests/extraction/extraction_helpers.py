@@ -28,6 +28,8 @@ GOOD: dict[str, Any] = {
     "urgency_evidence": None,
     "evidence": {
         "item_description": "10 office chairs",
+        # The category rests on the item words, as the prompt asks (a correct answer).
+        "item_category": "10 office chairs",
         "quantity": "10 office chairs",
         "estimated_total": "Rs 45,000",
         "currency": "Rs 45,000",

@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from app.policy import PolicyConfig, PolicyOutcome
 from app.services.extraction import FieldStatus, LLMClient, LLMError, UrgencyLevel, known_categories
-from app.services.extraction.prompt import FIELD_RULES, build_user_message
+from app.services.extraction.prompt import FIELD_RULES, build_user_message, category_list
 from app.services.extraction.schemas import EXTRACTED_FIELDS
 
 from .cases import EvaluationCase
@@ -90,7 +90,7 @@ SECURITY RULES (most important):
 
 """
         + FIELD_RULES
-        + f"ALLOWED CATEGORY CODES: {', '.join(known_categories(config))}\n\n"
+        + "CATEGORY CODES:\n" + category_list(known_categories(config)) + "\n\n"
         + policy_rules_text(config)
         + f"""
 SUPPLIER LISTS (names match ignoring case and extra spaces):

@@ -178,6 +178,15 @@ class _LLMUrgency(BaseModel):
         return clean_text(value)
 
 
+class _LLMInstructions(BaseModel):
+    """Text in the request that tries to instruct the system, as the model reports it."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    found: bool = False
+    evidence: str | None = Field(default=None, max_length=300)
+
+
 class LLMReply(BaseModel):
     """The JSON object the model returns. A field it leaves out counts as MISSING."""
 
@@ -194,6 +203,7 @@ class LLMReply(BaseModel):
     delivery_location: _TextField = Field(default_factory=_TextField)
     business_justification: _TextField = Field(default_factory=_TextField)
     urgency: _LLMUrgency = Field(default_factory=_LLMUrgency)
+    instructions_to_system: _LLMInstructions = Field(default_factory=_LLMInstructions)
     notes: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")

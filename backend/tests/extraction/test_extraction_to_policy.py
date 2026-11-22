@@ -73,6 +73,7 @@ def test_prohibited_category_is_blocked():
     text = "Please buy 5 gift cards worth Rs 25,000 for staff, for the staff party."
     evidence = {
         "item_description": "5 gift cards",
+        "item_category": "5 gift cards",
         "quantity": "5 gift cards",
         "estimated_total": "Rs 25,000",
         "currency": "Rs 25,000",
