@@ -1,6 +1,6 @@
 # Evaluation Cases
 
-**Status: 30 dev cases verified (Maira, 2026-11-22); 50 test cases still draft.** 80 synthetic cases written on 2026-11-19. Every label must be checked by a team member before any result is reported (`EXTRACTION_MODULE_DESIGN.md` §6); the test cases are checked before the final test run. The dev/test split was locked on 2026-11-19, before any tuning (D-047).
+**Status: 30 dev cases verified (Maira, 2026-11-22); 50 test cases still draft.** 80 synthetic cases written on 2026-11-19. Every label must be checked by a team member before any result is reported (`EXTRACTION_MODULE_DESIGN.md` §6); the test cases are checked before the final test run. The dev/test split was locked on 2026-11-19, before any tuning (D-047). **Runs (2026-11-24):** dev run 1 done and recorded (`evaluation/results/`); challenge run (§9) in progress, no results recorded yet; the final 50-case run waits until the pipeline is integrated and frozen, near the end (D-057).
 
 **Owner:** Maira · **Related:** `EXTRACTION_MODULE_DESIGN.md` §6-7, `POLICY_RULES.md`, D-044, D-045, D-047, D-048
 

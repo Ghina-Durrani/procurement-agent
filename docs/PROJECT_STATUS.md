@@ -1,85 +1,147 @@
 # Project Status
 
-Living progress record. Every Claude updates this when a task changes state. Do not mark a task Done unless its acceptance criteria and tests are satisfied and the checks were actually run.
+Living progress record. Update it when a task changes state. Do not mark a task Done unless its acceptance criteria and tests are satisfied and the checks were actually run. **The application does not work end to end yet:** its main parts work and are tested on their own, but no application workflow joins them (section 3).
 
-**Last audit:** 2026-11-12 · `main` at `5a4a773` plus the extraction agent first slice (below). Checks were run in a cloud sandbox, not on teammates' machines. The extraction agent has only been run against a scripted fake model, never a real one.
+**Last audit:** 2026-11-24 (D-057). Branch `feat/extraction-slice` at `09fb79c`, 15 commits ahead of `main` (`14f9bd5`) and **not merged**. Checks in section 5 were run in a cloud sandbox on that date; the real-model runs in section 4 were run on Maira's laptop.
 
-## 1. Milestone sequence (from `TECH_STACK_AND_DECISIONS.md` §13)
+## 1. Agreed roadmap from here (D-057)
+
+The team built the uncertain parts first on purpose: the policy engine, the AI extraction and the System A vs System B experiment. That work is kept. From now on the order is:
+
+1. Finish the 40-case challenge experiment for both systems (development data).
+2. Analyse the results; find real safety or correctness failures.
+3. Fix critical failures only. Record minor limitations instead of tuning prompts again and again.
+4. Build the **first vertical slice** (below).
+5. Grow it into the full procurement workflow, one slice at a time.
+6. Run the 50 held-out test cases **once, near the end**, after the research pipeline is integrated into the app and frozen.
+
+No new development datasets, weaker-model experiments or major redesigns without discussing the need first.
+
+**First vertical slice (target of step 4).** Reuses the existing parts:
+employee submits a request in a minimal React form → API receives it → database stores the original → Groq extraction → evidence checks → policy engine → decision, rule IDs and reasons saved → the employee opens the request and sees its status.
+
+**Then, in later slices:** at most two clarification rounds with the requester; human review and approval as a separate workflow; audit history; proper request states and transitions. The wider FYP scope stays (`FYP_MASTER_CONTEXT.md` §6): supplier matching, RFQs, quotation extraction and comparison, Finance Agent, purchase orders and reporting, subject to Q-001.
+
+## 2. Milestones (`TECH_STACK_AND_DECISIONS.md` §13)
 
 | # | Milestone | State | Evidence / notes |
 |---|---|---|---|
-| 1 | Repository and environment audit | Done | This document |
-| 2 | Environment baseline | Done | Backend starts, frontend checks pass, and the backend connects to PostgreSQL (`check_connection()` test passes when a database is running). The Docker Compose container itself was not run in the audit sandbox |
-| 3 | Minimal data/API vertical slice (submit + persist + retrieve a request) | Not started | Database connection exists, but no models, migrations, or routes yet |
-| 4 | Deterministic policy engine with tests | Done | Engine and 100 tests in `backend/app/policy/` and `backend/tests/policy/`; rules approved (D-032 to D-036, D-039, D-040). Calling it from the workflow comes with the service layer |
-| 5 | Extraction interface (schema, missing/ambiguous fields; provider later) | Partly done | Schema `extraction-v1` with a status per field (D-044) in `backend/app/services/extraction/`, tested with a fake model (125 extraction tests). **Not yet tried on a real model.** Urgency scoring (priority from evidence + deadline) and the clarification loop are not built (D-031 open) |
-| 6 | Human review + audit | Not started | |
-| 7 | Minimal UI (form, result, review queue, history) | Not started | shadcn/ui base components exist; no screens yet |
-| 8 | Evaluation: System A vs System B | In progress | 80 cases and a checker (D-047); 30 dev labels verified, 50 test labels draft; System A, System B and metrics built and dry-run (D-050); no real-model run yet |
-| 9 | Demo/report readiness | Not started | |
+| 1 | Repository and environment audit | Done | 2026-11-05; re-audited 2026-11-24 |
+| 2 | Environment baseline | Done | Backend and frontend checks pass; backend reaches PostgreSQL in tests. `docker compose up` was not run in the sandbox |
+| 3 | Minimal data/API vertical slice | **Not started** | Next after the challenge review (D-057). Schema exists; no endpoint or workflow uses it |
+| 4 | Deterministic policy engine | Done | `backend/app/policy/`, 125 tests; not yet called by any app workflow |
+| 5 | Extraction interface and provider | Done (not integrated) | One Groq call per request, evidence checks, tried on real Groq. Clarification loop not built |
+| 6 | Human review and audit | Not started | Tables exist (`approvals`, `audit_events`); no logic |
+| 7 | Minimal UI | Not started | Base components only; no screens |
+| 8 | Evaluation: System A vs System B | In progress | Dev run 1 done; challenge run in progress; final 50-case run waits until near the end (D-057) |
+| 9 | Demo and report readiness | Not started | |
 
-## 2. What is built (IN REPO)
+## 3. Component status
 
-**Backend:** FastAPI app factory; `/health`; docs hidden outside development; typed settings with secret masking; database connection layer (`app/db/session.py`: engine, session, `check_connection()`; SQLAlchemy 2 + psycopg 3); deterministic policy engine (`app/policy/`, rules POL-001 to POL-009 and POL-900); extraction agent first slice (`app/services/extraction/`: schemas, provider-agnostic LLM adapter, Groq/OpenAI-style client, fake model, prompt, evidence checks, converter to `PolicyInput`, command-line demo).
-**Frontend:** Vite + React 19 + TS strict + Tailwind 4; design tokens for the three policy outcomes; shadcn/ui base components in `src/components/ui/` (button, card, dialog, input, label, select, skeleton, sonner, table, textarea, badge); `PolicyOutcomeBadge`; `apiRequest` client; ESLint/Prettier/Husky guardrails; many libraries installed but unused.
-**Infra:** Compose file for PostgreSQL 16 (port 5433, localhost-only, volume, healthcheck); `.env.example`; `.gitignore`; LF line endings.
-**Docs:** `CLAUDE.md` and the `docs/` set, including `POLICY_RULES.md`.
+### 3.1 Implemented and tested
 
-## 3. Verified check results (2026-11-12 for backend, 2026-11-10 for frontend; sandbox)
+| Component | Where | Tests | Notes |
+|---|---|---|---|
+| Backend foundation: `create_app()`, `/health`, typed settings with `SecretStr`, database connection layer | `main` | 6 | Docs hidden outside development (D-021) |
+| Database schema: 19 tables, 6 Alembic migrations, SQLAlchemy models, append-only triggers on `policy_evaluations` and `audit_events` | `main` (`83f32bc`, Ghina) | 126 (`tests/db`, need PostgreSQL) | Run on PostgreSQL 16 in the sandbox; not confirmed on teammates' machines. D-037 and D-038 still need team approval |
+| Policy engine: POL-001 to POL-010 and POL-900; checkpoints `INTAKE`, `PRE_PO`, `APPROVAL`; precedence BLOCK > HUMAN_REVIEW > CONTINUE; examples C01 to C25 | up to D-040 on `main`, the rest on the branch | 125 (`tests/policy`) | Pure code: no database, AI or clock |
+| Configurable reason for buying: required above 50,000 PKR or for a claimed emergency; otherwise optional (`conditionally_required_fields`) | branch | in `tests/policy` | D-053, D-054 |
+| Extraction agent `extraction-v1`: status, value and exact evidence per field; one call to Groq `openai/gpt-oss-120b` through an OpenAI-style client; one retry on broken JSON; rate-limit retry wrapper | branch | 185 (`tests/extraction`) | D-043, D-044, D-008 |
+| Safeguards: evidence checks; category classified by the AI from the item and kept only if backed by the item words; AI-reported instructions (quote checked by code) and a fixed word list, both feeding POL-010 | branch | in `tests/extraction` | D-051, D-052, D-053. Word lists frozen at `a863a76` |
+| Priority step: urgency signal plus deadline → proposed priority and a "due soon" tag | branch | 50 (`tests/urgency`) | D-049 |
+| Evaluation framework: System A (AI decides from rules in its prompt), System B runner (the product pipeline), `run`, `check_cases` and `metrics` commands, resumable runs, prompt fingerprints, one final run per system | branch | 122 (`tests/evaluation`) | D-045, D-047, D-050 |
+| Evaluation data: 80 main cases (30 dev verified by Maira, 50 test draft, split locked); 40 challenge cases (39 machine-validated, 1 disputed); independent reference version of the rules used to check labels | branch | in `tests/evaluation` | D-047, D-056 |
+| Frontend scaffold: React 19, Vite 8, TS strict, Tailwind 4, shadcn/ui base components, `PolicyOutcomeBadge`, `apiRequest` client, lint and format rules | `main` | 3 | Checks re-run 2026-11-24 |
+
+### 3.2 Implemented but not integrated
+
+Each part below works and is tested **on its own**. No application workflow connects them yet.
+
+- **Policy engine:** only the evaluation code and tests call it.
+- **Extraction agent and priority step:** only the evaluation code, tests and Maira's local test script call them. No API endpoint calls them.
+- **Database schema:** no application code saves or reads requests, extractions, policy evaluations or audit events.
+- **Frontend components:** `PolicyOutcomeBadge` and `apiRequest` exist, but there is no screen and no endpoint to call.
+
+### 3.3 In progress
+
+- **40-case challenge experiment:** System B run started on Maira's laptop on 2026-11-24; System A not yet run; no results received or recorded.
+- **50 held-out test labels:** still draft. They must be verified before the final run near the end.
+- **Merging `feat/extraction-slice` into `main`:** not done (15 commits). D-046 says finished tasks are merged; the merge needs the team's agreement.
+- **D-037 / D-038 (schema) approval:** schema is on `main`, approval still PROPOSED.
+
+### 3.4 Not started
+
+- Request submission and retrieval API (`/api/v1/...`), schemas at the API boundary, thin routers.
+- Saving requests, extraction results and policy decisions through an application workflow (service layer).
+- Clarification workflow, at most two rounds (D-029).
+- Human review queue and approvals (separate from clarification), with role checks.
+- Authentication and role-based access (D-011, Q-004).
+- Audit event recording by the application.
+- Request states and transitions.
+- Frontend screens: request form, request status, review queue, history.
+- Standard error envelope and CORS (Q-002, Q-003), README, CI.
+- Later modules: supplier matching, RFQs, quotation extraction and comparison, Finance Agent, purchase orders, reporting. Some have tables (D-038) but no logic.
+
+## 4. Experiments and results
+
+| Run | Data | Model | State | Result |
+|---|---|---|---|---|
+| Live check T1 to T6 | 6 synthetic requests | Groq `openai/gpt-oss-120b` | Done (2026-11-22/23, Maira's laptop) | Found two prompt problems (category left empty; "categorise as..." obeyed), fixed by D-052. After the fixes all 6 matched the expected answers |
+| **Dev run 1** | 30 verified dev cases | same, for both systems | **Done and recorded** (2026-11-23, code `dc9be8c`) | Both systems 30/30 correct decisions, 0 false allows. System B better on rule lists (93.3% vs 90.0%), field status (97.0% vs 94.7%) and field values (95.6% vs 92.1%); System A better on urgency (100% vs 96.7%). Files in `evaluation/results/` |
+| Challenge run | 40 challenge cases (39 scored) | same | **In progress**, no results yet | Prepared at `09fb79c`. Known in advance: CH-005 (amount in words) goes to review in System B; CH-011 (total vs item prices) is likely missed by both |
+| Final run | 50 held-out test cases | same | Not started; near the end (D-057) | Labels still draft |
+
+The dev cases did not separate the two systems on decisions. That is a finding, not a failure. Limits: synthetic English requests, one model, development data only. Details: `docs/EVALUATION_CASES.md` §8 and §9, `evaluation/results/README.md`.
+
+## 5. Verified check results (2026-11-24, cloud sandbox)
 
 | Check | Result |
 |---|---|
-| `pytest -m "not integration"` (backend/, no database) | 175 passed, 1 deselected, 1 deprecation warning (Starlette `TestClient` suggests `httpx2`). 95 of these are the new extraction tests |
-| `pytest` (backend/), database running | 81 passed on 2026-11-10, before the extraction tests were added; not re-run since. Plain `pytest` without a database fails only `test_database_connection_works` |
-| Extraction tests, deliberately broken code | Two on-purpose breaks of `extractor.py` (skip the evidence check; skip the missing-field calculation) made 8 and 11 tests fail. The file was then restored |
-| Extraction agent on a real model | **not run** |
-| `npm run typecheck` | clean |
-| `npm run lint` | clean |
-| `npm run format:check` | clean |
-| `npm test` | 1 file, 3 tests passed |
-| `npm run build` | succeeded (JS 250 kB, 81 kB gzip) |
-| `npm audit` | not re-run after the merge; 7 moderate findings were reported on 2026-11-05 and are not triaged (Q-009) |
-| `docker compose up` | **not run** |
+| `pytest` (backend/), PostgreSQL 16 running | **614 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, basic 6 |
+| `pytest -m "not integration"` (no database) | 487 passed, 127 deselected |
+| `mypy app` | no issues in 45 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
+| `check_cases` (80 main cases) | no problems; 30 verified, 50 draft |
+| `check_cases --dataset challenge` | no problems; 39 machine-validated, 1 disputed |
+| Frontend `npm run typecheck`, `lint`, `format:check` | clean |
+| Frontend `npm test` | 1 file, 3 tests passed |
+| Frontend `npm run build` | succeeded (250 kB, 81 kB gzip) |
+| `npm audit` | not re-run; 7 moderate findings from 2026-11-05 not triaged (Q-009) |
+| `docker compose up`, migrations on teammates' machines | not run |
 
-## 4. Task board
+## 6. Who did what
 
-| Task | Owner | State | Notes |
-|---|---|---|---|
-| 2.1 Database connection (SQLAlchemy, driver, session, connection test) | Haya | Done | Merged 2026-11-10 from `feat/frontend-shadcn-base`. Alembic is not installed yet |
-| shadcn/ui base components | Haya | Done | Merged 2026-11-10 (D-015) |
-| Standard error envelope + CORS (Q-002, Q-003) | _assign_ | Not started | Do before the first feature endpoint |
-| Fix `requirements.txt` (D-025) | _assign_ | Partly done | Now UTF-8. Still a full `pip freeze`; the runtime/dev split is not done |
-| Schema design (Q-006) | Ghina | In progress | 19 tables in 6 migrations with 126 database tests (207 passed with the existing 81), run in a cloud sandbox only. Not yet run on Ghina's machine and not merged, so not Done. Needs approval of D-037 and D-038 |
-| Policy rules design (Q-007) | Maira | Done | Approved 2026-11-08; `docs/POLICY_RULES.md`, D-032 to D-036 |
-| Policy engine code (Part B) | Maira | Done | If a rule changes, update its function in `rules.py`, the document and the example test together |
-| Extraction agent, first slice (schema, adapter + fake, prompt, evidence checks, `PolicyInput` converter) | Haya | Done (with a fake model) | Provider chosen: Groq free tier (D-008). Next: create a key, try real messages, then urgency scoring and the clarification loop |
-| Extraction schema `extraction-v1` (status per field, urgency signal, one naming convention) | Maira | Done (with a fake model) | D-044. Next: evaluation cases, then System A and System B (D-045) |
-| Priority step: urgency signal + deadline → proposed priority, "due soon" tag | Maira | Done | D-049. Used by the evaluation now; the workflow will call it after clarification |
-| Fixes for two weak spots: category word check, POL-010 for instructions aimed at the system | Maira | Done | D-051, example C25. Labels of the 8 prompt-injection cases updated |
-| Experiment: System A (AI only), System B runner, metrics, rate-limit retry, resumable runs | Maira | Done (fake model only) | D-050. Next: real-model dev runs with a Groq key, then prompt tuning, freeze, verify test labels, one final run |
-| Evaluation cases: 80 synthetic cases, locked dev/test split, checker that runs the policy engine on every label | Maira | Done (30 dev labels verified, 50 test draft) | D-047, `docs/EVALUATION_CASES.md`. Next: System A and System B (D-045); verify the test labels before the final run |
+| Area | Owner |
+|---|---|
+| Backend foundation, Compose, `.gitignore` | Ghina |
+| Frontend scaffold, shadcn/ui base, database connection layer | Haya |
+| Database schema and migrations (D-037, D-038) | Ghina |
+| Extraction agent first slice (D-043) | Haya |
+| Policy rules and engine; extraction-v1 and later extraction changes; priority step; evaluation cases, experiment, challenge set | Maira |
 
-Owners are not recorded in the repo; fill them in.
+## 7. Known issues
 
-## 5. Known issues
+1. `backend/requirements.txt` is a full `pip freeze` with no runtime/dev split (D-025); `mypy` is not listed.
+2. Frontend error parsing (`message`) does not match FastAPI's default error body (`detail`) (Q-002).
+3. No CORS configuration, so the browser cannot call the API yet (Q-003).
+4. No README; setup knowledge lives in `CLAUDE.md` and chat.
+5. No CI; `main` is unprotected.
+6. Python and Node versions not pinned (Q-005).
+7. Plain `pytest` needs PostgreSQL for the 126 database tests and one connection test; without it, run `pytest -m "not integration"`.
+8. Migrations have not been run on teammates' machines.
+9. The evidence check proves a value's words appear in the request; it cannot prove the requester told the truth. Amounts written only in words are discarded, so those requests go to review (challenge case CH-005).
+10. Both prompts say "never calculate", so a total that disagrees with item prices is not detected (challenge case CH-011).
+11. The Groq free tier is limited (check the Groq console). Runs use `--pause` and can be resumed.
+12. `PROJECT_STATUS.md` fell behind the code between 2026-11-12 and 2026-11-24; fixed by this audit. Keep it updated at each milestone (D-057).
 
-1. `backend/requirements.txt` is a full `pip freeze` with no runtime/dev split and includes transitive packages.
-2. Frontend error parsing (`message`) does not match FastAPI's default error body (`detail`).
-3. No CORS configuration, so the browser cannot call the API yet.
-4. No README; setup knowledge lives only in `CLAUDE.md` and chat.
-5. No CI; `main` is unprotected and unchecked on push.
-6. Python/Node versions not pinned.
-7. Plain `pytest` fails one test (`test_database_connection_works`) when the PostgreSQL container is not running. Start it with `docker compose up -d`, or run `pytest -m "not integration"`.
-8. Alembic is installed with the schema (D-005b, D-037); the migrations have not yet been run on teammates' machines.
-9. The extraction agent has not been tested on a real model, so its real accuracy is unknown.
-10. The priority step exists (D-049), but no request workflow calls it yet, so requests in the app still have no `proposed_priority`. The policy engine treats a missing priority as "not an emergency", so the emergency rule cannot fire in the app until the workflow calls `propose_priority` (the evaluation already does).
-11. The extraction evidence check proves a value's words really appear in the request. It cannot prove the requester told the truth, and it does not read amounts written only in words (those go to review).
-12. The Groq free tier is limited (about 8,000 tokens per minute and 200,000 tokens per day for `openai/gpt-oss-120b` at the time of writing; check the Groq console for the real numbers). Large evaluation runs must be spread over several days or use another provider.
+## 8. Next milestone
 
-## 6. Change log (newest first; one line per merged task)
+**Milestone 3: the first vertical slice** (section 1), after the challenge results are analysed and any critical failure is fixed. Before the first endpoint: approve the API conventions and error envelope (D-023, Q-002) and CORS (Q-003).
+
+## 9. Change log (newest first; one line per merged task)
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-24 | Maira Qazi | Documentation audit (D-057): `PROJECT_STATUS.md` rewritten from the real repository state (four status groups, verified checks, experiments, agreed roadmap); stale claims corrected in `TECH_STACK_AND_DECISIONS.md`, `DECISIONS.md`, `BACKEND_GUIDE.md`, `FYP_MASTER_CONTEXT.md` (facts only, scope unchanged), `EXTRACTION_MODULE_DESIGN.md`, `EVALUATION_CASES.md` and `CLAUDE.md`. Documentation only |
 | 2026-11-24 | Maira Qazi | Challenge set: CH-011 and CH-027 decided (`HUMAN_REVIEW`), CH-023 stays disputed (no written rule for mixed personal use); 39 machine-validated, 1 disputed; no engine, prompt or main-case changes |
 | 2026-11-24 | Maira Qazi | D-056: 40-case development challenge set with machine-validated labels (draft = independent reference policy = engine), 3 disputed cases flagged, near-copy checks, `--dataset challenge` for run/check/metrics; reference check added for the 80 main cases (all agree); 24 new tests (613 pass with the database). Not run yet |
 | 2026-11-24 | Maira Qazi | Dev run 1 with Groq recorded (both systems 30/30 decisions, 0 false allows; B more accurate on fields and rules). D-055: three shared prompt refinements (corrections, purpose as reason, deadline is not urgency); EV-040 wording; 589 tests pass with the database |

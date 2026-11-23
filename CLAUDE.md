@@ -70,7 +70,7 @@ Backend commands must be run from `backend/`: `pytest.ini` and the `.env` path (
 5. All checks in section 4 pass (backend `pytest`; frontend typecheck, lint, format:check, test, build).
 6. Definition of Done in `docs/ENGINEERING_HANDBOOK.md` §4 is satisfied.
 7. Update `docs/PROJECT_STATUS.md` (task row + change-log line). Add to `docs/DECISIONS.md` if you made or changed a decision.
-8. Commit with a Conventional Commit message, `git pull --rebase origin main`, push to `main`.
+8. Commit with a Conventional Commit message, `git pull --rebase origin main`, push to `main`. Exception: extraction and evaluation work lives on `feat/extraction-slice` until the team merges it (D-046). Current roadmap and next milestone: `docs/PROJECT_STATUS.md` §1 (D-057).
 9. Finish with a short honest summary: what changed, files touched, checks actually run and their results, anything not done, and the single recommended next step.
 
 ## 6. Labels used in all docs

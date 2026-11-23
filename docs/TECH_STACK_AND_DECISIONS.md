@@ -264,4 +264,8 @@ Before making code changes:
 8. **Evaluation:** run System A/System B on a documented labelled dataset and report results honestly.
 9. **Demo and report readiness:** reproducible setup, test results, architecture diagram, known limitations, and demo script.
 
+> **Realigned order (2026-11-24, `DECISIONS.md` D-057).** The list above is kept as the original plan. In practice milestones 4, 5 and part of 8 were built first, because they were the riskiest parts. Milestone 3 (the data/API vertical slice) is next, after the 40-case challenge run is finished and analysed. The final 50-case test run moves to near the end, after the pipeline is integrated into the app and frozen. Current state per milestone: `PROJECT_STATUS.md` §2.
+>
+> **Later decisions that replace the OPEN items above** (details in `DECISIONS.md`, the live log): LLM provider Groq `openai/gpt-oss-120b` (D-008); UI library shadcn/ui with Tailwind 4 (D-015, D-016); SQLAlchemy 2 and Alembic in the repo (D-005, D-005b); policy rules POL-001 to POL-010 and POL-900 (D-032 to D-054). Section 11 is the original log and is not updated.
+
 Do not skip repository inspection or security checks, especially before uploading code to GitHub or deploying it.

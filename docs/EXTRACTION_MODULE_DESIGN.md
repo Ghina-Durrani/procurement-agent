@@ -11,6 +11,7 @@
 > - LLM provider: Groq free tier, switchable through `.env` (D-008).
 > - Language: English only (D-030), so mixed Urdu wording in section 2 is out of scope.
 > - Related guide: the repo file is `BACKEND_GUIDE.md`.
+> - Update 2026-11-24: the module is built and tested (D-043 to D-055) and was tried on real Groq (dev run 1, `evaluation/results/`). EX-1 is settled by D-008 (Groq, not Gemini). The build order in section 10 is done up to step 6's first part; the held-out run waits until near the end (D-057). It is not yet called by any API (`PROJECT_STATUS.md` §3.2).
 
 ## 1. Goal of this module
 
