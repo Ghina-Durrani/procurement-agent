@@ -74,10 +74,10 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 
 ### POL-001: Is anything missing?
 - **When:** request arrives
-- **Needs:** `missing_fields`, and for the reason for buying also `estimated_total`, `proposed_priority`, `item_category`
+- **Needs:** `missing_fields`, and for the reason for buying also `estimated_total` and `proposed_priority`
 - **Rule:** if a required detail is still missing after the requester was asked up to 2 times → `HUMAN_REVIEW` by a Procurement Officer.
 - **Always required:** item, quantity, amount, currency.
-- **Reason for buying (D-053):** optional for an ordinary purchase up to 50,000 PKR. Required when the amount is above 50,000 PKR or unknown, when the requester claims an emergency, or when the category is software, hazardous chemicals or vehicles (or unknown). The limit and the categories are settings, not code.
+- **Reason for buying (D-053, D-054):** required when the amount is above 50,000 PKR or the requester claims an emergency, whatever the category. Otherwise optional. A missing amount is asked for first; whether a reason is needed is decided once the amount is known. Category approvals stay separate (POL-006: software needs IT, vehicles need Senior Management). The limit is a setting, not code; a company can also list categories that need a reason, but the demo lists none. A reason given in the request ("for the computer lab") is always read and kept, even when optional.
 - **Reason shown:** "Required detail still missing: quantity."
 - **Based on:** a request cannot be approved without these basics.
 
@@ -165,7 +165,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 | Setting | Demo value |
 |---|---|
 | Currency | PKR only |
-| Required details | Always: item description, quantity, amount, currency (`item_description`, `quantity`, `estimated_total`, `currency`, D-044). Reason for buying (`business_justification`): required above 50,000 PKR, for an emergency, and for `SOFTWARE`, `HAZARDOUS_CHEMICALS`, `VEHICLES`; otherwise optional (`conditionally_required_fields`, D-053) |
+| Required details | Always: item description, quantity, amount, currency (`item_description`, `quantity`, `estimated_total`, `currency`, D-044). Reason for buying (`business_justification`): required above 50,000 PKR and for an emergency, whatever the category; otherwise optional (`conditionally_required_fields`, D-053, D-054) |
 | Approval limits (POL-002) | up to 50,000: none · up to 500,000: Manager · above: Senior Management |
 | Quotations (POL-003) | up to 100,000: 1 · above: 3 |
 | Split-purchase window (POL-004) | 30 days; limits watched: 50,000, 100,000, 500,000 |

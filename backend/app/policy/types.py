@@ -141,10 +141,11 @@ def _check_bands(bands: list[ApprovalTier] | list[QuotationBand], name: str) -> 
 
 
 class ConditionalRequirement(_Frozen):
-    """A detail that is required only in some cases (D-053).
+    """A detail that is required only in some cases (D-053, D-054).
 
-    It is required when ANY condition holds. Unknown facts count as "holds" (fail closed):
-    an unknown amount counts as above the limit, an unknown category as a listed one.
+    It is required when ANY condition holds. An unknown fact does not make it required: the
+    unknown fact is handled by its own rule first (a missing amount by POL-001 and clarification,
+    an unknown category by POL-006), and the condition is checked again once it is known.
     """
 
     field: str = Field(min_length=1)

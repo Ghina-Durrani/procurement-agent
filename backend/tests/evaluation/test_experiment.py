@@ -399,8 +399,10 @@ def test_system_a_reads_the_same_category_descriptions() -> None:
 
 def test_both_systems_are_told_when_a_reason_is_needed() -> None:
     a = system_a_prompt(CONTEXT)
-    assert "business_justification is also required when estimated_total is above 50,000 or unknown" in a
+    assert "business_justification is also required when estimated_total is above 50,000; or the requester claims an emergency." in a
     assert "Otherwise it is optional." in a
+    assert "SOFTWARE or HAZARDOUS" not in a  # the category alone does not require a reason (D-054)
+    assert "decided after the amount is known" in a
 
 
 def test_both_systems_get_the_same_meaning_of_instructions_to_the_system() -> None:

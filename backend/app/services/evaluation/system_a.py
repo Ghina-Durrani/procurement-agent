@@ -36,12 +36,16 @@ def _conditional_text(config: PolicyConfig) -> str:
     for item in config.conditionally_required_fields:
         cases = []
         if item.required_above is not None:
-            cases.append(f"estimated_total is above {_money(item.required_above)} or unknown")
+            cases.append(f"estimated_total is above {_money(item.required_above)}")
         if item.required_for_emergency:
             cases.append("the requester claims an emergency")
         if item.required_for_categories:
-            cases.append(f"the category is {' or '.join(item.required_for_categories)} or unknown")
-        lines.append(f"  {item.field} is also required when {'; or '.join(cases)}. Otherwise it is optional.\n")
+            cases.append(f"the category is {' or '.join(item.required_for_categories)}")
+        lines.append(
+            f"  {item.field} is also required when {'; or '.join(cases)}. Otherwise it is optional.\n"
+            "  If estimated_total is missing, report only the missing amount: whether the reason is needed\n"
+            "  is decided after the amount is known.\n"
+        )
     return "".join(lines)
 
 

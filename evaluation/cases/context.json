@@ -91,12 +91,7 @@
       {
         "field": "business_justification",
         "required_above": "50000.00",
-        "required_for_emergency": true,
-        "required_for_categories": [
-          "SOFTWARE",
-          "HAZARDOUS_CHEMICALS",
-          "VEHICLES"
-        ]
+        "required_for_emergency": true
       }
     ]
   }

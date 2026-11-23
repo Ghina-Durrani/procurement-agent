@@ -23,14 +23,10 @@ def demo_config(**changes: Any) -> PolicyConfig:
         "policy_version": "demo-2026-11-05.1",
         "accepted_currencies": ["PKR"],
         "required_fields": ["item_description", "quantity", "estimated_total", "currency"],
-        # A business reason is optional for ordinary purchases up to the no-approval limit (D-053).
+        # A business reason is optional up to the no-approval limit, whatever the category;
+        # required above it and for a claimed emergency (D-053, D-054).
         "conditionally_required_fields": [
-            {
-                "field": "business_justification",
-                "required_above": "50000.00",
-                "required_for_emergency": True,
-                "required_for_categories": ["SOFTWARE", "HAZARDOUS_CHEMICALS", "VEHICLES"],
-            }
+            {"field": "business_justification", "required_above": "50000.00", "required_for_emergency": True}
         ],
         "approval_tiers": [
             {"up_to": "50000.00", "approver_role": None},

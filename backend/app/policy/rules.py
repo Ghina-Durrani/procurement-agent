@@ -90,14 +90,18 @@ def input_checks(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]
 
 
 def _required_now(data: PolicyInput, config: PolicyConfig) -> list[str]:
-    """Always-required details, plus the conditional ones whose condition holds (D-053)."""
+    """Always-required details, plus the conditional ones whose condition holds (D-053, D-054).
+
+    Unknown facts do not count: a missing amount is already a missing required detail, so the
+    requester is asked for it first, and the condition is checked again once it is known.
+    """
     required = list(config.required_fields)
     for item in config.conditionally_required_fields:
         amount, category = data.estimated_total, data.item_category
         if (
-            (item.required_above is not None and (amount is None or amount > item.required_above))
+            (item.required_above is not None and amount is not None and amount > item.required_above)
             or (item.required_for_emergency and data.proposed_priority is Priority.EMERGENCY)
-            or (item.required_for_categories and (category is None or category in item.required_for_categories))
+            or (category is not None and category in item.required_for_categories)
         ):
             required.append(item.field)
     return required
