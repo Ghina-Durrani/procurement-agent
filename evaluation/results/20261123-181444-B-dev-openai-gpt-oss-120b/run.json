@@ -1,0 +1,12 @@
+{
+  "run_id": "20261123-181444-B-dev-openai-gpt-oss-120b",
+  "system": "B",
+  "split": "dev",
+  "model": "openai/gpt-oss-120b",
+  "fake_model": false,
+  "system_prompt_sha256": "352944ca953a2b4ba9ee8b5b4a75c296ae363727bd62096970e1c063eec06a27",
+  "case_count": 30,
+  "started_at": "2026-11-23T18:14:44.717667Z",
+  "finished_at": "2026-11-23T18:25:49.735467Z",
+  "rate_limit_waits": 0
+}

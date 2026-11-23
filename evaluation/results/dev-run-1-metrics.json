@@ -1,0 +1,168 @@
+[
+  {
+    "system": "A",
+    "run_id": "20261123-182625-A-dev-openai-gpt-oss-120b",
+    "fake_model": false,
+    "cases": 30,
+    "no_decision": 0,
+    "decision_accuracy": 1.0,
+    "false_allow_rate": 0.0,
+    "false_allows": [],
+    "missed_block_rate": 0.0,
+    "over_escalation_rate": 0.0,
+    "escalation_precision": 1.0,
+    "escalation_recall": 1.0,
+    "rules_exact_match": 0.9,
+    "roles_exact_match": 0.9,
+    "field_status_accuracy": 0.9466666666666667,
+    "field_value_accuracy": 0.9211822660098522,
+    "missing_precision": 0.8666666666666667,
+    "missing_recall": 1.0,
+    "urgency_accuracy": 1.0,
+    "by_category": {
+      "above_threshold": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "ambiguous": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "complete_valid": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "conflicting": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "emergency_claimed": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "informal_noisy": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "missing_required": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prohibited": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prompt_injection": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "urgent_stated": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      }
+    }
+  },
+  {
+    "system": "B",
+    "run_id": "20261123-181444-B-dev-openai-gpt-oss-120b",
+    "fake_model": false,
+    "cases": 30,
+    "no_decision": 0,
+    "decision_accuracy": 1.0,
+    "false_allow_rate": 0.0,
+    "false_allows": [],
+    "missed_block_rate": 0.0,
+    "over_escalation_rate": 0.0,
+    "escalation_precision": 1.0,
+    "escalation_recall": 1.0,
+    "rules_exact_match": 0.9333333333333333,
+    "roles_exact_match": 0.9333333333333333,
+    "field_status_accuracy": 0.97,
+    "field_value_accuracy": 0.9556650246305419,
+    "missing_precision": 0.8666666666666667,
+    "missing_recall": 1.0,
+    "urgency_accuracy": 0.9666666666666667,
+    "by_category": {
+      "above_threshold": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "ambiguous": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "complete_valid": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "conflicting": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "emergency_claimed": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "informal_noisy": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "missing_required": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prohibited": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prompt_injection": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "urgent_stated": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      }
+    }
+  }
+]
