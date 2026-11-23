@@ -49,3 +49,20 @@ def test_tags_typed_by_the_user_cannot_close_or_reopen_the_block(tag):
 def test_braces_in_the_request_do_not_break_the_prompt_builder():
     message = build_user_message('{"quantity": 5} {0} {name}')
     assert '{"quantity": 5} {0} {name}' in message
+
+
+def test_system_prompt_says_a_clear_correction_is_not_a_conflict():
+    prompt = build_system_prompt(["FURNITURE"])
+    assert "A clear correction is not a conflict" in prompt
+    assert "the corrected value is PRESENT" in prompt
+
+
+def test_system_prompt_says_a_stated_purpose_is_a_reason():
+    prompt = build_system_prompt(["FURNITURE"])
+    assert 'A stated purpose counts as a reason ("for the new hires", "for the computer lab")' in prompt
+    assert "can also be the delivery_location" in prompt
+
+
+def test_system_prompt_says_a_deadline_alone_is_not_urgency():
+    prompt = build_system_prompt(["FURNITURE"])
+    assert 'A deadline on\n  its own ("by Friday", "next month") is NORMAL.' in prompt

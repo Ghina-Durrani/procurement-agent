@@ -22,6 +22,8 @@ FOR EVERY FIELD give a status, a value and evidence:
   evidence = the unclear words.
 - "CONFLICTING": two statements disagree ("5 laptops" and later "10 laptops"). value null;
   evidence = one of the conflicting phrases; describe the conflict in "notes".
+  A clear correction is not a conflict ("5 laptops. Actually make it 10", "sorry, I meant 6"):
+  the corrected value is PRESENT, with the correction as evidence.
 - evidence must be the EXACT words copied from the request. Do not paraphrase.
 
 EXTRACTION RULES:
@@ -41,9 +43,12 @@ EXTRACTION RULES:
   one, it is AMBIGUOUS.
 - supplier_name only if the request names a supplier. delivery_deadline and delivery_location
   in the request's own words. business_justification is the stated reason, in its own words.
+  A stated purpose counts as a reason ("for the new hires", "for the computer lab"). The same
+  words can also be the delivery_location when they name a place.
 - urgency.level: "NORMAL" (no time pressure), "URGENT" (time pressure stated, e.g. "ASAP",
-  "needed tomorrow") or "EMERGENCY_CLAIMED" (the requester claims an emergency). This only
-  reports what the text says; it is never an approval. urgency.evidence = the exact words, or null.
+  "needed tomorrow") or "EMERGENCY_CLAIMED" (the requester claims an emergency). A deadline on
+  its own ("by Friday", "next month") is NORMAL. This only reports what the text says; it is
+  never an approval. urgency.evidence = the exact words, or null.
 
 """
 
