@@ -80,6 +80,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-24 | Maira Qazi | D-056: 40-case development challenge set with machine-validated labels (draft = independent reference policy = engine), 3 disputed cases flagged, near-copy checks, `--dataset challenge` for run/check/metrics; reference check added for the 80 main cases (all agree); 24 new tests (613 pass with the database). Not run yet |
 | 2026-11-24 | Maira Qazi | Dev run 1 with Groq recorded (both systems 30/30 decisions, 0 false allows; B more accurate on fields and rules). D-055: three shared prompt refinements (corrections, purpose as reason, deadline is not urgency); EV-040 wording; 589 tests pass with the database |
 | 2026-11-23 | Maira Qazi | D-054: reason for buying required only above 50,000 PKR or for an emergency (not by category); a missing amount is clarified first; no label changes; 586 tests pass with the database |
 | 2026-11-23 | Maira Qazi | D-053: configurable reason requirement (`conditionally_required_fields`; optional up to 50,000 PKR for ordinary purchases); POL-010 covers skipping checks and misclassification instructions; POL-010 is a person's label in the answer key; labels EV-011, EV-041, EV-046 updated by the rule change; 23 new tests (583 pass with the database) |

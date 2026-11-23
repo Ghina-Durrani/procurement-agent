@@ -22,7 +22,7 @@ from pathlib import Path
 from app.config import get_settings
 from app.services.extraction import LLMClient, LLMError, RetryingLLMClient, build_llm_client
 
-from .cases import CaseFileError, EvaluationCase, Split, load_cases
+from .cases import DATASETS, CaseFileError, EvaluationCase, Split, load_cases, load_dataset
 from .context import REPO_ROOT, EvaluationContext, load_context
 from .fake_models import LabelEchoLLM
 from .results import (
@@ -66,11 +66,12 @@ def run(
     limit: int | None = None,
     log: Callable[[str], None] = print,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    dataset: str = "main",
 ) -> RunInfo:
     """Run one system over one split. Continues a run already in run_dir."""
     context = load_context()
-    # Real runs only use labels a person has verified; a dry run only tests the plumbing.
-    cases = load_cases(require_verified=not fake_model, split=split)
+    # Real runs only use checked labels; a dry run only tests the plumbing.
+    cases = load_dataset(dataset, split=split, for_scoring=False, allow_unchecked=fake_model)
     if limit is not None:
         cases = cases[:limit]
     fingerprint = prompt_fingerprint(system, context)
@@ -78,14 +79,14 @@ def run(
 
     if info_path.exists():
         info = read_run_info(info_path)
-        if (info.system, info.split, info.fake_model) != (system, split, fake_model):
+        if (info.system, info.split, info.fake_model, info.dataset) != (system, split, fake_model, dataset):
             raise RunRefused("That run folder belongs to a different system, split or model kind.")
         if info.system_prompt_sha256 != fingerprint:
             raise RunRefused("The prompt changed since this run started; start a new run instead.")
     else:
         info = RunInfo(
             run_id=run_dir.name, system=system, split=split, model=model, fake_model=fake_model,
-            system_prompt_sha256=fingerprint, case_count=len(cases), started_at=now(),
+            system_prompt_sha256=fingerprint, case_count=len(cases), started_at=now(), dataset=dataset,
         )
         write_run_info(info_path, info)
 
@@ -109,15 +110,16 @@ def run(
     return finished
 
 
-def _new_run_dir(system: SystemName, split: Split, model: str, when: datetime) -> Path:
+def _new_run_dir(system: SystemName, split: Split, model: str, when: datetime, dataset: str = "main") -> Path:
     slug = re.sub(r"[^a-z0-9]+", "-", model.casefold()).strip("-")
-    return RESULTS_DIR / f"{when:%Y%m%d-%H%M%S}-{system.value}-{split.value}-{slug}"
+    kind = split.value if dataset == "main" else dataset
+    return RESULTS_DIR / f"{when:%Y%m%d-%H%M%S}-{system.value}-{kind}-{slug}"
 
 
 def _final_run_exists(system: SystemName) -> bool:
     for info_path in RESULTS_DIR.glob("*/run.json"):
         info = read_run_info(info_path)
-        if info.system is system and info.split is Split.TEST and not info.fake_model:
+        if info.system is system and info.split is Split.TEST and not info.fake_model and info.dataset == "main":
             return True
     return False
 
@@ -139,25 +141,36 @@ def _main(argv: list[str] | None) -> int:
     parser.add_argument("--resume", type=Path, help="continue the run in this folder")
     parser.add_argument("--pause", type=float, default=0.0, help="seconds to wait between cases")
     parser.add_argument("--limit", type=int, help="only the first N cases (for a quick try)")
+    parser.add_argument("--dataset", choices=sorted(DATASETS), default="main",
+                        help="main: the 80 cases; challenge: the separate development challenge set")
     args = parser.parse_args(argv)
 
     if args.resume:
         info = read_run_info(args.resume / "run.json")
         system, split, fake, run_dir, model = info.system, info.split, info.fake_model, args.resume, info.model
+        dataset = info.dataset
     else:
         if not args.system:
             parser.error("--system is required (or --resume)")
         system, split, fake = SystemName(args.system), Split(args.split), args.fake
+        dataset = args.dataset
+        if dataset == "challenge":
+            split = Split.DEV  # the challenge set is development data only
         model = "fake" if fake else get_settings().llm_model
         if split is Split.TEST and not fake:
             if not args.final:
                 raise RunRefused("The test split is run once, with frozen prompts. Add --final to confirm.")
             if _final_run_exists(system):
                 raise RunRefused(f"System {system.value} already has a final test run. It is run only once.")
-        run_dir = _new_run_dir(system, split, model, datetime.now(UTC))
+        run_dir = _new_run_dir(system, split, model, datetime.now(UTC), dataset)
 
     if fake:
-        llm: LLMClient = LabelEchoLLM(load_cases(require_verified=False), system)
+        everything = (
+            load_cases(require_verified=False)
+            if dataset == "main"
+            else load_dataset(dataset, for_scoring=False, allow_unchecked=True)
+        )
+        llm: LLMClient = LabelEchoLLM(everything, system)
     else:
         try:
             llm = RetryingLLMClient(build_llm_client())
@@ -166,7 +179,7 @@ def _main(argv: list[str] | None) -> int:
             return 1
     info = run(
         system=system, split=split, llm=llm, model=model, fake_model=fake, run_dir=run_dir,
-        pause_seconds=args.pause, limit=args.limit,
+        pause_seconds=args.pause, limit=args.limit, dataset=dataset,
     )
     print(f"\nSaved to {run_dir}. Score it with:\n  python -m app.services.evaluation.metrics {run_dir}")
     if info.fake_model:

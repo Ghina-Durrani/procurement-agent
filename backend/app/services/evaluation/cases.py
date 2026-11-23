@@ -13,6 +13,7 @@ Three kinds of checks:
    held-out test texts cannot change quietly after tuning starts.
 """
 import hashlib
+import re
 import json
 from decimal import Decimal, InvalidOperation
 from enum import Enum
@@ -38,6 +39,12 @@ from .context import (
 
 CASES_PATH = CASES_DIR / "cases.jsonl"
 LOCK_PATH = CASES_DIR / "split_lock.json"
+# A separate, harder development set (D-056). Never mixed with the 80 cases above.
+CHALLENGE_DIR = CASES_DIR.parent / "challenge"
+CHALLENGE_PATH = CHALLENGE_DIR / "cases.jsonl"
+CHALLENGE_LOCK_PATH = CHALLENGE_DIR / "text_lock.json"
+DATASETS = {"main": (CASES_PATH, LOCK_PATH), "challenge": (CHALLENGE_PATH, CHALLENGE_LOCK_PATH)}
+NEAR_DUPLICATE_SIMILARITY = 0.8
 
 # Design: about 40% development, 60% held-out test (EXTRACTION_MODULE_DESIGN.md section 6).
 DEV_SHARE_RANGE = (0.30, 0.50)
@@ -73,6 +80,12 @@ class Split(str, Enum):
 class LabelStatus(str, Enum):
     DRAFT = "draft"  # written, not yet checked by a team member
     VERIFIED = "verified"  # a team member checked every label
+    # Challenge set only: the draft label, an independent reference version of the rules and the
+    # policy engine all agree. Development labels, not human-verified ground truth.
+    MACHINE_VALIDATED = "machine_validated"
+    # Challenge set only: genuinely unclear under the current rules. Needs a person's decision;
+    # run, but never scored until decided.
+    DISPUTED = "disputed"
 
 
 class _Strict(BaseModel):
@@ -86,7 +99,7 @@ class ExpectedField(_Strict):
 
 
 class EvaluationCase(_Strict):
-    case_id: str = Field(pattern=r"^EV-\d{3}$")
+    case_id: str = Field(pattern=r"^(EV|CH)-\d{3}$")
     split: Split
     category: CaseCategory
     request_text: str = Field(min_length=1, max_length=2000)
@@ -103,6 +116,7 @@ class EvaluationCase(_Strict):
     label_status: LabelStatus
     verified_by: str | None = None
     notes: str | None = None
+    theme: str | None = None  # challenge set: what the case is meant to test
 
     def status_of(self, name: str) -> FieldStatus:
         return self.expected_fields[name].status
@@ -188,9 +202,13 @@ def check_case(case: EvaluationCase, context: EvaluationContext) -> list[str]:
     if case.label_status is LabelStatus.VERIFIED and not (case.verified_by or "").strip():
         problems.append("a verified case must name who verified it (verified_by)")
 
-    # Only compare with the engine when the labels themselves are well formed.
+    # Only compare with the engine and the reference version when the labels are well formed.
     if not problems:
+        from .reference_policy import reference_problems  # imports this module, so imported here
+
         problems.extend(_engine_problems(case, context))
+        prefix = f"{case.case_id}: "
+        problems.extend(problem.removeprefix(prefix) for problem in reference_problems(case, context))
     return [f"{case.case_id}: {problem}" for problem in problems]
 
 
@@ -310,19 +328,112 @@ def check_lock(cases: list[EvaluationCase], path: Path = LOCK_PATH) -> list[str]
     return problems
 
 
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.casefold()))
+
+
+def _similarity(first: str, second: str) -> float:
+    a, b = _words(first), _words(second)
+    return len(a & b) / len(a | b) if a | b else 1.0
+
+
+def check_challenge_set(cases: list[EvaluationCase], main_cases: list[EvaluationCase]) -> list[str]:
+    """Set-level checks for the challenge set: separate IDs, themes, explanations, no near-copies."""
+    problems: list[str] = []
+    seen: set[str] = set()
+    for case in cases:
+        if not case.case_id.startswith("CH-"):
+            problems.append(f"{case.case_id}: challenge cases use CH- IDs")
+        if case.case_id in seen:
+            problems.append(f"{case.case_id}: duplicate case_id")
+        seen.add(case.case_id)
+        if case.split is not Split.DEV:
+            problems.append(f"{case.case_id}: challenge cases are development cases (split dev)")
+        if not (case.theme or "").strip():
+            problems.append(f"{case.case_id}: theme is missing")
+        if not (case.notes or "").strip():
+            problems.append(f"{case.case_id}: a short explanation (notes) is required")
+        if case.label_status not in (LabelStatus.MACHINE_VALIDATED, LabelStatus.DISPUTED, LabelStatus.DRAFT):
+            problems.append(f"{case.case_id}: challenge labels are draft, machine_validated or disputed")
+    for index, case in enumerate(cases):
+        for other in cases[index + 1 :]:
+            if _similarity(case.request_text, other.request_text) >= NEAR_DUPLICATE_SIMILARITY:
+                problems.append(f"{case.case_id}: nearly the same text as {other.case_id}")
+        for other in main_cases:
+            if _similarity(case.request_text, other.request_text) >= NEAR_DUPLICATE_SIMILARITY:
+                problems.append(f"{case.case_id}: nearly the same text as {other.case_id} in the main set")
+    return problems
+
+
 def validate(
     cases_path: Path = CASES_PATH,
     context_path: Path = CONTEXT_PATH,
     lock_path: Path = LOCK_PATH,
+    *,
+    dataset: str = "main",
 ) -> tuple[list[EvaluationCase], list[str]]:
     """Run every check. Returns the parsed cases and all problems found."""
     context = load_context(context_path)
     cases, problems = read_cases(cases_path)
     for case in cases:
         problems.extend(check_case(case, context))
-    problems.extend(check_case_set(cases))
+    if dataset == "challenge":
+        main_cases, _ = read_cases(CASES_PATH)
+        problems.extend(check_challenge_set(cases, main_cases))
+    else:
+        problems.extend(check_case_set(cases))
     problems.extend(check_lock(cases, lock_path))
     return cases, problems
+
+
+MACHINE_CHECK = "machine check: draft label = reference policy = policy engine"
+
+
+def promote_validated(dataset: str) -> tuple[int, list[str]]:
+    """Mark challenge drafts as machine-validated, but only cases with no problem at all.
+
+    Cases with a problem stay draft and are listed; disputed cases are never touched. Labels
+    are never changed here, only their status.
+    """
+    if dataset == "main":
+        raise ValueError("the main set is verified by a person, not by the machine check")
+    cases_path, lock_path = DATASETS[dataset]
+    cases, problems = validate(cases_path, lock_path=lock_path, dataset=dataset)
+    blocked = {problem.split(":", 1)[0] for problem in problems}
+    lines, promoted = [], 0
+    for case in cases:
+        data = case.model_dump(mode="json", exclude_none=True)
+        if case.label_status is LabelStatus.DRAFT and case.case_id not in blocked:
+            data["label_status"], data["verified_by"] = LabelStatus.MACHINE_VALIDATED.value, MACHINE_CHECK
+            promoted += 1
+        data.setdefault("verified_by", None)
+        lines.append(json.dumps(data, ensure_ascii=False))
+    cases_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return promoted, problems
+
+
+def load_dataset(
+    dataset: str, *, split: Split | None = None, for_scoring: bool, allow_unchecked: bool = False
+) -> list[EvaluationCase]:
+    """Cases of one dataset, checked. allow_unchecked is only for dry runs with the fake model.
+
+    Main set: verified labels only (load_cases). Challenge set: machine-validated labels; with
+    for_scoring, disputed cases are left out until a person decides them.
+    """
+    if dataset == "main":
+        return load_cases(require_verified=not allow_unchecked, split=split)
+    cases_path, lock_path = DATASETS[dataset]
+    cases, problems = validate(cases_path, lock_path=lock_path, dataset=dataset)
+    if split is not None:
+        cases = [case for case in cases if case.split is split]
+    drafts = [case.case_id for case in cases if case.label_status is LabelStatus.DRAFT]
+    if drafts and not allow_unchecked:
+        problems.append(f"{len(drafts)} challenge case(s) are still draft (first: {drafts[0]})")
+    if problems:
+        raise CaseFileError(problems)
+    if for_scoring:
+        cases = [case for case in cases if case.label_status is not LabelStatus.DISPUTED]
+    return cases
 
 
 def load_cases(

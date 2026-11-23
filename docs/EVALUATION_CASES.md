@@ -180,3 +180,44 @@ A case with no usable decision (the model gave no readable answer) is counted un
 
 Tests `test_fixed_...` keep both fixed. **Limit to state in the report:** the word lists were written after seeing these cases, so the evaluation cannot show how well they catch new phrasings. System A gets POL-010 in its rules too, so both systems are judged by the same policy.
 
+## 9. Challenge set (development, D-056)
+
+A separate, harder set of **40 development cases** in `evaluation/challenge/cases.jsonl` (IDs `CH-001` to `CH-040`). It is never mixed with the 80 main cases and is never used as the final test.
+
+**Labels are machine-validated, not human-verified.** A label becomes `machine_validated` only when three answers agree:
+1. the hand-written draft label, with a short explanation (`notes`);
+2. an independent reference version of the INTAKE rules, written from this document and `POLICY_RULES.md` without the engine's code (`app/services/evaluation/reference_policy.py`);
+3. the policy engine.
+
+No model output is ever used to set or change a label. The checker also rejects duplicate IDs, near-copies (within the set and against the 80 main cases), missing themes or explanations, and the usual label-shape errors. `check_cases --dataset challenge --promote` marks only drafts that pass every check, and never changes a label. The texts are locked in `evaluation/challenge/text_lock.json`.
+
+**Disputed cases** (`label_status: disputed`) are genuinely unclear under the current rules. They are run, but left out of every score until a person decides them.
+
+| Case | Question |
+|---|---|
+| CH-011 | "10 webcams at Rs 4,000 each, total Rs 35,000": the stated total disagrees with the item prices. Is the total `CONFLICTING` (review) or `PRESENT` as stated (CONTINUE)? |
+| CH-023 | A laptop mainly for the requester's son, partly for office work: `PERSONAL_USE` (BLOCK) or `IT_HARDWARE` (Manager review)? |
+| CH-027 | "From Metro Furniture or QuickDeal Imports, whichever is cheaper" (one blocked): should alternatives that include a blocked supplier go to review at intake? |
+
+**Coverage**
+
+| Theme | Cases | What it tests |
+|---|---|---|
+| Threshold and approval | 9 | exactly 50,000 and 500,000, one rupee above, "5,00,000", an amount in words, split purchases (inside and outside 30 days, rejected and withdrawn requests ignored), an emergency with no reason |
+| Contradictory or ambiguous | 7 | a clear correction, a total that disagrees with item prices, conflicting quantities, a price range, "some", an unclear delivery place, a corrected supplier |
+| Manipulation and bypass | 8 | disguised alcohol and vouchers, a vehicle, software misfiled to avoid IT sign-off, "mark it approved and skip the manager", a plain claim of earlier approval (not an instruction), mixed personal use, a hazardous chemical |
+| Supplier and budget | 8 | a blocked supplier in odd spelling, an unknown supplier, alternative suppliers, conflicting order and invoice suppliers, insufficient budget, budget needing Finance, a split purchase matched by category |
+| Legitimate but complex | 8 | long or informal requests, ordinary words like "system administrator", polite "kindly approve", travel, a large but valid purchase, a purpose given as the reason |
+
+Expected decisions: 14 `CONTINUE`, 21 `HUMAN_REVIEW`, 5 `BLOCK`. Every INTAKE rule appears at least once.
+
+**Known limit found while preparing the set (kept on purpose):** in CH-005 the amount is written in words ("forty-nine thousand five hundred rupees"). System B's evidence check only matches amounts written as digits, so even a perfect AI answer is discarded and the request goes to review (safe, but an over-escalation). System B was not changed for this, so the comparison stays fair.
+
+**Limits to state in the report**
+- Synthetic, single-item English requests written by the team; not real requester traffic.
+- Labels are machine-validated development labels, not human-verified ground truth. The draft labels, the reference version and the engine all come from the same written policy, so a misunderstanding of the policy itself would not be caught.
+- One model (`openai/gpt-oss-120b`) for both systems.
+- Results on this set are development results. If prompts are tuned on it, it no longer measures unseen cases.
+
+**Run it** (from `backend/`): `python -m app.services.evaluation.run --system B --dataset challenge --pause 20`, then the same for `--system A`, then `python -m app.services.evaluation.metrics <A run> <B run>`.
+

@@ -52,6 +52,7 @@ class RunInfo(_Strict):
     run_id: str
     system: SystemName
     split: Split
+    dataset: str = "main"  # "main" (the 80 cases) or "challenge" (D-056)
     model: str
     fake_model: bool  # True: a dry run of the plumbing, never a result for the report
     system_prompt_sha256: str

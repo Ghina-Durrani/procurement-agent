@@ -31,7 +31,7 @@ from app.policy import PolicyOutcome
 from app.services.extraction import FieldStatus
 from app.services.extraction.schemas import EXTRACTED_FIELDS
 
-from .cases import CaseFileError, EvaluationCase, load_cases
+from .cases import CaseFileError, EvaluationCase, LabelStatus, load_dataset
 from .context import load_context
 from .results import CaseResult, PredictedField, RunInfo, read_results, read_run_info
 
@@ -85,6 +85,8 @@ class Score:
     missing_recall: float | None
     urgency_accuracy: float | None
     by_category: dict[str, dict[str, Any]] = field(default_factory=dict)
+    disputed_left_out: int = 0
+    dataset: str = "main"
 
 
 def score(cases: list[EvaluationCase], results: list[CaseResult], info: RunInfo) -> Score:
@@ -205,6 +207,8 @@ def render(scores: list[Score]) -> str:
     lines += [header, "|---" * (len(scores) + 1) + "|"]
     lines.append("| Cases | " + " | ".join(str(item.cases) for item in scores) + " |")
     lines.append("| No usable decision | " + " | ".join(str(item.no_decision) for item in scores) + " |")
+    if any(item.disputed_left_out for item in scores):
+        lines.append("| Disputed cases left out | " + " | ".join(str(item.disputed_left_out) for item in scores) + " |")
     for label, key in _ROWS:
         lines.append(f"| {label} | " + " | ".join(_pct(getattr(item, key)) for item in scores) + " |")
     for item in scores:
@@ -215,8 +219,12 @@ def render(scores: list[Score]) -> str:
 
 def score_run(run_dir: Path) -> Score:
     info = read_run_info(run_dir / "run.json")
-    cases = load_cases(require_verified=True, split=info.split)
-    return score(cases, read_results(run_dir / "results.jsonl"), info)
+    everything = load_dataset(info.dataset, split=info.split, for_scoring=False)
+    cases = load_dataset(info.dataset, split=info.split, for_scoring=True)
+    result = score(cases, read_results(run_dir / "results.jsonl"), info)
+    result.disputed_left_out = sum(case.label_status is LabelStatus.DISPUTED for case in everything)
+    result.dataset = info.dataset
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:

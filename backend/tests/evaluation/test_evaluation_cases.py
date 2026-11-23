@@ -136,21 +136,24 @@ def test_verified_case_must_name_the_person(tmp_path: Path) -> None:
 def test_wrong_expected_decision_is_caught(tmp_path: Path) -> None:
     problems = _problems(tmp_path, _with("EV-001", expected_decision="HUMAN_REVIEW"))
     assert problems == [
-        "EV-001: expected_decision is HUMAN_REVIEW, but the rules give CONTINUE"
+        "EV-001: expected_decision is HUMAN_REVIEW, but the rules give CONTINUE",
+        "EV-001: reference policy gives CONTINUE, label says HUMAN_REVIEW",
     ]
 
 
 def test_wrong_rule_list_is_caught(tmp_path: Path) -> None:
     problems = _problems(tmp_path, _with("EV-009", expected_triggered_rules=["POL-001"]))
     assert problems == [
-        "EV-009: expected_triggered_rules is ['POL-001'], rules give ['POL-001', 'POL-900']"
+        "EV-009: expected_triggered_rules is ['POL-001'], rules give ['POL-001', 'POL-900']",
+        "EV-009: reference policy gives rules ['POL-001', 'POL-900'], label says ['POL-001']",
     ]
 
 
 def test_wrong_roles_are_caught(tmp_path: Path) -> None:
     problems = _problems(tmp_path, _with("EV-009", expected_required_roles=["MANAGER"]))
     assert problems == [
-        "EV-009: expected_required_roles is ['MANAGER'], rules give ['PROCUREMENT_OFFICER']"
+        "EV-009: expected_required_roles is ['MANAGER'], rules give ['PROCUREMENT_OFFICER']",
+        "EV-009: reference policy gives roles ['PROCUREMENT_OFFICER'], label says ['MANAGER']",
     ]
 
 
