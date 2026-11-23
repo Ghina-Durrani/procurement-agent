@@ -80,6 +80,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-24 | Maira Qazi | Challenge set: CH-011 and CH-027 decided (`HUMAN_REVIEW`), CH-023 stays disputed (no written rule for mixed personal use); 39 machine-validated, 1 disputed; no engine, prompt or main-case changes |
 | 2026-11-24 | Maira Qazi | D-056: 40-case development challenge set with machine-validated labels (draft = independent reference policy = engine), 3 disputed cases flagged, near-copy checks, `--dataset challenge` for run/check/metrics; reference check added for the 80 main cases (all agree); 24 new tests (613 pass with the database). Not run yet |
 | 2026-11-24 | Maira Qazi | Dev run 1 with Groq recorded (both systems 30/30 decisions, 0 false allows; B more accurate on fields and rules). D-055: three shared prompt refinements (corrections, purpose as reason, deadline is not urgency); EV-040 wording; 589 tests pass with the database |
 | 2026-11-23 | Maira Qazi | D-054: reason for buying required only above 50,000 PKR or for an emergency (not by category); a missing amount is clarified first; no label changes; 586 tests pass with the database |

@@ -65,13 +65,21 @@ def test_every_theme_is_covered_with_both_easy_and_hard_outcomes() -> None:
 
 def test_disputed_cases_explain_the_question() -> None:
     disputed = [case for case in read_cases(CHALLENGE_PATH)[0] if case.label_status is LabelStatus.DISPUTED]
-    assert [case.case_id for case in disputed] == ["CH-011", "CH-023", "CH-027"]
+    assert [case.case_id for case in disputed] == ["CH-023"]
     assert all("DISPUTED:" in (case.notes or "") for case in disputed)
 
 
 def test_scoring_leaves_disputed_cases_out_but_runs_include_them() -> None:
     assert len(load_dataset("challenge", for_scoring=False)) == 40
-    assert len(load_dataset("challenge", for_scoring=True)) == 37
+    assert len(load_dataset("challenge", for_scoring=True)) == 39
+
+
+def test_maira_decisions_on_the_disputed_cases_are_applied() -> None:
+    cases = _by_id()
+    assert cases["CH-011"].expected_decision.value == "HUMAN_REVIEW"
+    assert cases["CH-011"].status_of("estimated_total").value == "CONFLICTING"
+    assert cases["CH-027"].expected_triggered_rules == ["POL-005"]
+    assert cases["CH-023"].label_status is LabelStatus.DISPUTED  # needs a written definition first
 
 
 # --- The independent reference policy ------------------------------------------------------
@@ -153,9 +161,9 @@ def test_promote_marks_only_clean_drafts_and_never_changes_labels(tmp_path: Path
     before = [{k: v for k, v in case.items() if k not in ("label_status", "verified_by")} for case in cases]
     promoted, problems = promote_validated("challenge")
     after = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
-    assert promoted == 36
+    assert promoted == 38
     assert after[0]["label_status"] == "draft"
-    assert [case["label_status"] for case in after if case["case_id"] in ("CH-011", "CH-023", "CH-027")] == ["disputed"] * 3
+    assert [case["label_status"] for case in after if case["case_id"] == "CH-023"] == ["disputed"]
     for old, new in zip(before, after):
         for key in ("expected_decision", "expected_triggered_rules", "expected_required_roles", "request_text"):
             assert old[key] == new[key]
@@ -191,14 +199,14 @@ def test_dry_run_on_the_challenge_set(tmp_path: Path, system: SystemName) -> Non
     assert info.dataset == "challenge"
     assert read_run_info(run_dir / "run.json").case_count == 40
     result = score_run(run_dir)
-    assert (result.cases, result.disputed_left_out) == (37, 3)
+    assert (result.cases, result.disputed_left_out) == (39, 1)
     if system is SystemName.A:
         assert result.decision_accuracy == 1.0
     else:
         # Known limit of System B, kept on purpose: CH-005 writes the amount in words, which the
         # evidence check cannot match, so even a perfect answer goes to review (safe, not wrong).
         assert result.false_allows == []
-        assert result.decision_accuracy == pytest.approx(36 / 37)
+        assert result.decision_accuracy == pytest.approx(38 / 39)
 
 
 def test_the_challenge_run_command_uses_the_dev_split_and_names_the_folder(

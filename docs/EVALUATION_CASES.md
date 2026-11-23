@@ -193,11 +193,11 @@ No model output is ever used to set or change a label. The checker also rejects 
 
 **Disputed cases** (`label_status: disputed`) are genuinely unclear under the current rules. They are run, but left out of every score until a person decides them.
 
-| Case | Question |
+| Case | Status |
 |---|---|
-| CH-011 | "10 webcams at Rs 4,000 each, total Rs 35,000": the stated total disagrees with the item prices. Is the total `CONFLICTING` (review) or `PRESENT` as stated (CONTINUE)? |
-| CH-023 | A laptop mainly for the requester's son, partly for office work: `PERSONAL_USE` (BLOCK) or `IT_HARDWARE` (Manager review)? |
-| CH-027 | "From Metro Furniture or QuickDeal Imports, whichever is cheaper" (one blocked): should alternatives that include a blocked supplier go to review at intake? |
+| CH-011 | **Decided by Maira (2026-11-24): `HUMAN_REVIEW`.** The item prices (10 x Rs 4,000) conflict with the stated total (Rs 35,000), so the total is `CONFLICTING`. Supported by POL-001 and fail closed. **Known gap:** both prompts say "never calculate", so the AI will probably accept the stated total; this affects both systems equally. |
+| CH-027 | **Decided by Maira (2026-11-24): `HUMAN_REVIEW`.** Two suppliers named for the same order count as `CONFLICTING` (section 4, D-048); the blocked one is still stopped before the purchase order. The AI may read "or" as `AMBIGUOUS` and give `CONTINUE`. |
+| CH-023 | **Still disputed.** BLOCK only if the written policy prohibits mainly personal purchases. It prohibits "personal items" (POL-006), defined as "private, non-work use", and does not define mixed use. Not scored until the team adds a definition or drops the case. |
 
 **Coverage**
 
@@ -209,7 +209,7 @@ No model output is ever used to set or change a label. The checker also rejects 
 | Supplier and budget | 8 | a blocked supplier in odd spelling, an unknown supplier, alternative suppliers, conflicting order and invoice suppliers, insufficient budget, budget needing Finance, a split purchase matched by category |
 | Legitimate but complex | 8 | long or informal requests, ordinary words like "system administrator", polite "kindly approve", travel, a large but valid purchase, a purpose given as the reason |
 
-Expected decisions: 14 `CONTINUE`, 21 `HUMAN_REVIEW`, 5 `BLOCK`. Every INTAKE rule appears at least once.
+Expected decisions: 13 `CONTINUE`, 22 `HUMAN_REVIEW`, 5 `BLOCK` (39 scored, 1 disputed). Every INTAKE rule appears at least once.
 
 **Known limit found while preparing the set (kept on purpose):** in CH-005 the amount is written in words ("forty-nine thousand five hundred rupees"). System B's evidence check only matches amounts written as digits, so even a perfect AI answer is discarded and the request goes to review (safe, but an over-escalation). System B was not changed for this, so the comparison stays fair.
 
