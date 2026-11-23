@@ -395,3 +395,39 @@ def test_field_values_are_stored_in_the_case_file_format() -> None:
 def test_system_a_reads_the_same_category_descriptions() -> None:
     assert "- ALCOHOL: any alcoholic drink" in system_a_prompt(CONTEXT)
     assert "- ALCOHOL: any alcoholic drink" in system_b_prompt(CONTEXT)
+
+
+def test_both_systems_are_told_when_a_reason_is_needed() -> None:
+    a = system_a_prompt(CONTEXT)
+    assert "business_justification is also required when estimated_total is above 50,000 or unknown" in a
+    assert "Otherwise it is optional." in a
+
+
+def test_both_systems_get_the_same_meaning_of_instructions_to_the_system() -> None:
+    a, b = system_a_prompt(CONTEXT), system_b_prompt(CONTEXT)
+    assert "asks to skip, bypass or avoid checks, approvals or reviews" in b
+    assert "record this under office" in b
+    assert "A plain statement that someone approved something earlier is not, by itself, an instruction." in b
+    assert "skip, bypass or avoid" in a and "categorise" in a
+    assert "someone approved something earlier is not, by itself, an instruction" in a
+
+
+def test_b_flags_a_request_the_model_reports_as_skipping_approval() -> None:
+    # EV-041 "skip approval!": the frozen word list misses it; the model's report catches it.
+    result = run_system_b(BY_ID["EV-041"], LabelEchoLLM(ALL_CASES, SystemName.B), CONTEXT)
+    assert "POL-010" in result.triggered_rules
+
+
+def test_b_still_requires_a_reason_above_the_limit() -> None:
+    # EV-065 is Rs 600,000. If the model finds no reason, POL-001 must fire (D-053).
+    reply = b_reply("EV-065", business_justification={"status": "MISSING", "value": None, "evidence": None})
+    result = run_system_b(BY_ID["EV-065"], FakeLLMClient([reply]), CONTEXT)
+    assert "business_justification" in result.missing_fields
+    assert "POL-001" in result.triggered_rules
+
+
+def test_b_does_not_require_a_reason_for_a_small_ordinary_purchase() -> None:
+    # EV-005 is Rs 1,800 of office supplies: no reason needed.
+    reply = b_reply("EV-005", business_justification={"status": "MISSING", "value": None, "evidence": None})
+    result = run_system_b(BY_ID["EV-005"], FakeLLMClient([reply]), CONTEXT)
+    assert result.decision is CONTINUE

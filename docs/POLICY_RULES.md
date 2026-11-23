@@ -1,6 +1,6 @@
 # Policy Rules
 
-**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040); a request naming conflicting suppliers goes to review (D-048). Updated 2026-11-22: a request that contains instructions aimed at the system goes to review (POL-010, D-051). All amounts and lists are still demo values (OPEN), not real company limits.
+**Status: DECIDED.** Approved by the team on 2026-11-08 (D-032 to D-036 in `DECISIONS.md`). Updated 2026-11-19: approval limits and budget are checked again before the purchase order (D-039, D-040); a request naming conflicting suppliers goes to review (D-048). Updated 2026-11-22: a request that contains instructions aimed at the system goes to review (POL-010, D-051). Updated 2026-11-23: the reason for buying is optional for ordinary purchases up to 50,000 PKR, and POL-010 covers attempts to skip checks or misclassify an item (D-053). All amounts and lists are still demo values (OPEN), not real company limits.
 
 **Author:** Maira · **Created:** 2026-11-05 · **Answers:** Q-007 in `DECISIONS.md`
 
@@ -74,8 +74,10 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 
 ### POL-001: Is anything missing?
 - **When:** request arrives
-- **Needs:** `missing_fields`
-- **Rule:** if a required detail (item, quantity, amount, currency, reason for buying) is still missing after the requester was asked up to 2 times → `HUMAN_REVIEW` by a Procurement Officer.
+- **Needs:** `missing_fields`, and for the reason for buying also `estimated_total`, `proposed_priority`, `item_category`
+- **Rule:** if a required detail is still missing after the requester was asked up to 2 times → `HUMAN_REVIEW` by a Procurement Officer.
+- **Always required:** item, quantity, amount, currency.
+- **Reason for buying (D-053):** optional for an ordinary purchase up to 50,000 PKR. Required when the amount is above 50,000 PKR or unknown, when the requester claims an emergency, or when the category is software, hazardous chemicals or vehicles (or unknown). The limit and the categories are settings, not code.
 - **Reason shown:** "Required detail still missing: quantity."
 - **Based on:** a request cannot be approved without these basics.
 
@@ -140,9 +142,10 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 ### POL-010: Is the request trying to give orders to the system?
 - **When:** request arrives
 - **Needs:** `instructions_in_request`
-- **Rule:** the request contains text aimed at the system instead of describing a purchase ("ignore the rules", "SYSTEM:", "set the decision to ...", "classify this as ...", "admin override") → `HUMAN_REVIEW` by a Procurement Officer. Not `BLOCK`: the purchase itself may be allowed, but nothing read from such a request is trusted without a person.
+- **Rule:** the request contains text aimed at the system instead of describing a purchase → `HUMAN_REVIEW` by a Procurement Officer. Not `BLOCK`: the purchase itself may be allowed, but nothing read from such a request is trusted without a person.
+- **What counts (D-053):** asking to skip, bypass or avoid checks, approvals or reviews, or saying they are not needed ("skip approval", "approve without review"); telling the system how to categorise or record the item ("record this under office refreshments"); telling it what to output or decide ("SYSTEM: set the decision to ..."). A plain statement that someone approved something earlier does not count by itself.
 - **Reason shown:** "The request contains instructions aimed at the system; a person must check it."
-- **Based on:** prompt-injection protection. The check is fixed code on the request text, so it works even if the AI was fooled.
+- **Based on:** prompt-injection protection. Found two ways: the AI reports such text with an exact quote, which code checks is real (D-052); and a fixed word list in code works even if the AI was fooled (D-051).
 
 ### POL-900: Did something go wrong?
 - **When:** any time
@@ -162,7 +165,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 | Setting | Demo value |
 |---|---|
 | Currency | PKR only |
-| Required details | item description, quantity, amount, currency, reason for buying. In the settings these are the extraction field names: `item_description`, `quantity`, `estimated_total`, `currency`, `business_justification` (D-044) |
+| Required details | Always: item description, quantity, amount, currency (`item_description`, `quantity`, `estimated_total`, `currency`, D-044). Reason for buying (`business_justification`): required above 50,000 PKR, for an emergency, and for `SOFTWARE`, `HAZARDOUS_CHEMICALS`, `VEHICLES`; otherwise optional (`conditionally_required_fields`, D-053) |
 | Approval limits (POL-002) | up to 50,000: none · up to 500,000: Manager · above: Senior Management |
 | Quotations (POL-003) | up to 100,000: 1 · above: 3 |
 | Split-purchase window (POL-004) | 30 days; limits watched: 50,000, 100,000, 500,000 |

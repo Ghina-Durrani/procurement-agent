@@ -4,7 +4,7 @@ Typical use (the database and API layers will call this later):
 
     result = extract_request(text, build_llm_client(),
                              categories=known_categories(config),
-                             required_fields=config.required_fields)
+                             required_fields=config.fields_to_collect())
     policy_input = to_policy_input(result, request_id=..., organization_id=..., submitted_at=...)
     decision = evaluate(policy_input, config)
 """

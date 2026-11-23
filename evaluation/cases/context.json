@@ -13,31 +13,57 @@
       "SkyWays Travel",
       "CoolAir Services"
     ],
-    "blocked": ["Falcon Wholesale", "QuickDeal Imports"]
+    "blocked": [
+      "Falcon Wholesale",
+      "QuickDeal Imports"
+    ]
   },
   "policy_config": {
     "organization_id": "00000000-0000-0000-0000-0000000000a1",
     "policy_version": "demo-2026-11-05.1",
-    "accepted_currencies": ["PKR"],
+    "accepted_currencies": [
+      "PKR"
+    ],
     "required_fields": [
       "item_description",
       "quantity",
       "estimated_total",
-      "currency",
-      "business_justification"
+      "currency"
     ],
     "approval_tiers": [
-      {"up_to": "50000.00", "approver_role": null},
-      {"up_to": "500000.00", "approver_role": "MANAGER"},
-      {"up_to": null, "approver_role": "SENIOR_MANAGER"}
+      {
+        "up_to": "50000.00",
+        "approver_role": null
+      },
+      {
+        "up_to": "500000.00",
+        "approver_role": "MANAGER"
+      },
+      {
+        "up_to": null,
+        "approver_role": "SENIOR_MANAGER"
+      }
     ],
     "quotation_bands": [
-      {"up_to": "100000.00", "min_quotations": 1},
-      {"up_to": null, "min_quotations": 3}
+      {
+        "up_to": "100000.00",
+        "min_quotations": 1
+      },
+      {
+        "up_to": null,
+        "min_quotations": 3
+      }
     ],
     "split_window_days": 30,
-    "split_watched_thresholds": ["50000.00", "100000.00", "500000.00"],
-    "split_ignored_statuses": ["REJECTED", "WITHDRAWN"],
+    "split_watched_thresholds": [
+      "50000.00",
+      "100000.00",
+      "500000.00"
+    ],
+    "split_ignored_statuses": [
+      "REJECTED",
+      "WITHDRAWN"
+    ],
     "allowed_categories": [
       "OFFICE_SUPPLIES",
       "IT_HARDWARE",
@@ -52,9 +78,26 @@
       "HAZARDOUS_CHEMICALS": "HSE_APPROVER",
       "VEHICLES": "SENIOR_MANAGER"
     },
-    "prohibited_categories": ["WEAPONS", "ALCOHOL", "PERSONAL_USE", "GIFT_CARDS"],
+    "prohibited_categories": [
+      "WEAPONS",
+      "ALCOHOL",
+      "PERSONAL_USE",
+      "GIFT_CARDS"
+    ],
     "procurement_officer_role": "PROCUREMENT_OFFICER",
     "finance_approver_role": "FINANCE_APPROVER",
-    "emergency_approver_role": "SENIOR_MANAGER"
+    "emergency_approver_role": "SENIOR_MANAGER",
+    "conditionally_required_fields": [
+      {
+        "field": "business_justification",
+        "required_above": "50000.00",
+        "required_for_emergency": true,
+        "required_for_categories": [
+          "SOFTWARE",
+          "HAZARDOUS_CHEMICALS",
+          "VEHICLES"
+        ]
+      }
+    ]
   }
 }

@@ -84,7 +84,7 @@ def run(replies: list[str | Exception], text: str = TEXT, **options: Any):
         text,
         llm,
         categories=known_categories(config),
-        required_fields=config.required_fields,
+        required_fields=config.fields_to_collect(),
         **options,
     )
     return result, llm

@@ -28,7 +28,7 @@ def run_system_b(case: EvaluationCase, llm: LLMClient, context: EvaluationContex
         case.request_text,
         llm,
         categories=known_categories(config),
-        required_fields=config.required_fields,
+        required_fields=config.fields_to_collect(),
     )
     proposal = propose_priority(
         extraction.urgency.level, extraction.delivery_deadline, context.submitted_at.date()

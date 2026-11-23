@@ -80,6 +80,7 @@ Owners are not recorded in the repo; fill them in.
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-23 | Maira Qazi | D-053: configurable reason requirement (`conditionally_required_fields`; optional up to 50,000 PKR for ordinary purchases); POL-010 covers skipping checks and misclassification instructions; POL-010 is a person's label in the answer key; labels EV-011, EV-041, EV-046 updated by the rule change; 23 new tests (583 pass with the database) |
 | 2026-11-22 | Maira Qazi | First real Groq test (6 synthetic requests, on Maira's laptop). D-052: category is classified from the item with code descriptions and must rest on the item words; the model reports instructions aimed at the system (quote checked by code, feeds POL-010); 11 new tests (562 pass with the database) |
 | 2026-11-22 | Maira Qazi | D-051: category word check in extraction (`guards.py`), new rule POL-010 (instructions aimed at the system) in the policy engine and in System A's rules, example C25; labels of the 8 prompt-injection cases updated (EV-072 now `HUMAN_REVIEW`); 50 new tests (551 pass with the database) |
 | 2026-11-22 | Maira Qazi | Experiment built (D-050): System A prompt and runner, System B runner, `run` and `metrics` commands, `RetryingLLMClient` for rate limits, shared `FIELD_RULES` (System B's prompt unchanged byte for byte), split-aware `load_cases`; dry runs reproduce every expected answer; 41 new tests (501 pass with the database); two weak spots of System B found (fixed by D-051) |

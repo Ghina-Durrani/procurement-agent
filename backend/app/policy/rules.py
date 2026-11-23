@@ -89,9 +89,23 @@ def input_checks(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]
     return found
 
 
+def _required_now(data: PolicyInput, config: PolicyConfig) -> list[str]:
+    """Always-required details, plus the conditional ones whose condition holds (D-053)."""
+    required = list(config.required_fields)
+    for item in config.conditionally_required_fields:
+        amount, category = data.estimated_total, data.item_category
+        if (
+            (item.required_above is not None and (amount is None or amount > item.required_above))
+            or (item.required_for_emergency and data.proposed_priority is Priority.EMERGENCY)
+            or (item.required_for_categories and (category is None or category in item.required_for_categories))
+        ):
+            required.append(item.field)
+    return required
+
+
 def completeness(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
     """POL-001: required details still missing after the clarification loop."""
-    missing = [field for field in config.required_fields if field in data.missing_fields]
+    missing = [field for field in _required_now(data, config) if field in data.missing_fields]
     if not missing:
         return []
     return [

@@ -92,7 +92,7 @@ def score(cases: list[EvaluationCase], results: list[CaseResult], info: RunInfo)
     absent = [case.case_id for case in cases if case.case_id not in by_id]
     if absent:
         raise ValueError(f"{len(absent)} case(s) have no result in run {info.run_id} (first: {absent[0]}).")
-    required = load_context().policy_config.required_fields
+    required = load_context().policy_config.fields_to_collect()
 
     correct = rules_ok = roles_ok = urgency_ok = no_decision = 0
     should_escalate = escalated_ok = should_block = blocked = should_continue = over = predicted_escalate = 0

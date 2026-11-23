@@ -93,6 +93,8 @@ class EvaluationCase(_Strict):
     context: CaseContext = Field(default_factory=CaseContext)
     expected_fields: dict[str, ExpectedField]
     expected_urgency: UrgencyLevel
+    # Does the request try to give orders to the system (POL-010)? Set by a person (D-053).
+    expected_instructions_to_system: bool
     expected_missing_fields: list[str]
     expected_checkpoint: Checkpoint
     expected_decision: PolicyOutcome
@@ -163,13 +165,17 @@ def check_case(case: EvaluationCase, context: EvaluationContext) -> list[str]:
         problems.append(f"supplier_name: '{supplier}' does not appear in the request text")
 
     should_be_missing = [
-        name for name in config.required_fields if case.status_of(name) is not FieldStatus.PRESENT
+        name for name in config.fields_to_collect() if case.status_of(name) is not FieldStatus.PRESENT
     ]
     if case.expected_missing_fields != should_be_missing:
         problems.append(
             f"expected_missing_fields is {case.expected_missing_fields}, but the field statuses "
             f"give {should_be_missing}"
         )
+
+    if instruction_phrases(case.request_text) and not case.expected_instructions_to_system:
+        # The frozen word list has never raised a false alarm, so a hit means the label is likely wrong.
+        problems.append("expected_instructions_to_system: the word list finds instructions in this text")
 
     if case.expected_checkpoint is not Checkpoint.INTAKE:
         problems.append("expected_checkpoint: extraction cases are evaluated at INTAKE")
@@ -200,8 +206,7 @@ def expected_policy_input(case: EvaluationCase, context: EvaluationContext) -> P
         item_category=case.value_of("item_category"),
         supplier_name=supplier,
         supplier_conflict=case.status_of("supplier_name") is FieldStatus.CONFLICTING,
-        # A fact about the text itself, found by the same code System B uses (D-051).
-        instructions_in_request=bool(instruction_phrases(case.request_text)),
+        instructions_in_request=case.expected_instructions_to_system,
         proposed_priority=priority_for(
             case.expected_urgency, case.value_of("delivery_deadline"), context
         ),

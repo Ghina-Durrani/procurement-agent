@@ -334,3 +334,15 @@ def test_recent_request_money_cannot_be_a_float() -> None:
 
 def test_settings_file_is_a_valid_policy_config() -> None:
     assert isinstance(CONTEXT.policy_config, PolicyConfig)
+
+
+def test_the_instruction_label_must_agree_with_a_word_list_hit(tmp_path: Path) -> None:
+    # EV-065 contains "SYSTEM:"; labelling it as having no instructions is caught.
+    problems = _problems(tmp_path, _with("EV-065", expected_instructions_to_system=False))
+    assert "EV-065: expected_instructions_to_system: the word list finds instructions in this text" in problems
+
+
+def test_the_instruction_label_reaches_the_engine(tmp_path: Path) -> None:
+    # EV-041 asks to "skip approval"; without the label, POL-010 would not be expected.
+    problems = _problems(tmp_path, _with("EV-041", expected_instructions_to_system=False))
+    assert "EV-041: expected_triggered_rules is ['POL-008', 'POL-010'], rules give ['POL-008']" in problems

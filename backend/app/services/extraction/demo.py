@@ -163,7 +163,7 @@ def run_case(text: str, llm: LLMClient, config: PolicyConfig) -> None:
         text,
         llm,
         categories=known_categories(config),
-        required_fields=config.required_fields,
+        required_fields=config.fields_to_collect(),
     )
     print_extraction(result)
     print_decision(decide(result, config))

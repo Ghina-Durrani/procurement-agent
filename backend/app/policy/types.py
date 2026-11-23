@@ -140,6 +140,27 @@ def _check_bands(bands: list[ApprovalTier] | list[QuotationBand], name: str) -> 
         raise ValueError(f"{name} limits must be in increasing order")
 
 
+class ConditionalRequirement(_Frozen):
+    """A detail that is required only in some cases (D-053).
+
+    It is required when ANY condition holds. Unknown facts count as "holds" (fail closed):
+    an unknown amount counts as above the limit, an unknown category as a listed one.
+    """
+
+    field: str = Field(min_length=1)
+    required_above: Decimal | None = None  # required when estimated_total is above this
+    required_for_emergency: bool = False
+    required_for_categories: list[str] = Field(default_factory=list)
+
+    reject_float_money = field_validator("required_above", mode="before")(_reject_float)
+
+    @model_validator(mode="after")
+    def needs_a_condition(self) -> "ConditionalRequirement":
+        if self.required_above is None and not self.required_for_emergency and not self.required_for_categories:
+            raise ValueError(f"conditional requirement for {self.field} has no condition")
+        return self
+
+
 class PolicyConfig(_Frozen):
     """One organization's rule settings. Versioned so old decisions can be re-checked."""
 
@@ -158,11 +179,25 @@ class PolicyConfig(_Frozen):
     procurement_officer_role: str
     finance_approver_role: str
     emergency_approver_role: str
+    # Details required only in some cases, for example a business reason above a limit (D-053).
+    conditionally_required_fields: list[ConditionalRequirement] = Field(default_factory=list)
+
+    def fields_to_collect(self) -> list[str]:
+        """Every detail the extraction must report on: always required, then sometimes required."""
+        extra = [item.field for item in self.conditionally_required_fields]
+        return [*self.required_fields, *[name for name in extra if name not in self.required_fields]]
 
     @model_validator(mode="after")
     def check_consistency(self) -> "PolicyConfig":
         _check_bands(self.approval_tiers, "approval_tiers")
         _check_bands(self.quotation_bands, "quotation_bands")
+        known = {*self.allowed_categories, *self.controlled_categories, *self.prohibited_categories}
+        for item in self.conditionally_required_fields:
+            if item.field in self.required_fields:
+                raise ValueError(f"{item.field} is already always required")
+            unknown = set(item.required_for_categories) - known
+            if unknown:
+                raise ValueError(f"unknown categories in conditional requirement: {sorted(unknown)}")
         lists = [
             set(self.allowed_categories),
             set(self.controlled_categories),

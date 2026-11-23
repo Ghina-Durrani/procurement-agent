@@ -218,7 +218,7 @@ def test_no_urgency_means_normal():
 
 
 def test_required_field_names_are_extraction_fields():
-    assert set(demo_config().required_fields) <= set(EXTRACTED_FIELDS)
+    assert set(demo_config().fields_to_collect()) <= set(EXTRACTED_FIELDS)
 
 
 def test_every_stored_field_maps_to_a_real_request_column():
@@ -228,4 +228,4 @@ def test_every_stored_field_maps_to_a_real_request_column():
 
 
 def test_every_required_field_has_a_request_column():
-    assert set(demo_config().required_fields) <= set(REQUEST_COLUMN_FOR_FIELD)
+    assert set(demo_config().fields_to_collect()) <= set(REQUEST_COLUMN_FOR_FIELD)

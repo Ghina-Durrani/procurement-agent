@@ -22,12 +22,15 @@ def demo_config(**changes: Any) -> PolicyConfig:
         "organization_id": ORG_ID,
         "policy_version": "demo-2026-11-05.1",
         "accepted_currencies": ["PKR"],
-        "required_fields": [
-            "item_description",
-            "quantity",
-            "estimated_total",
-            "currency",
-            "business_justification",
+        "required_fields": ["item_description", "quantity", "estimated_total", "currency"],
+        # A business reason is optional for ordinary purchases up to the no-approval limit (D-053).
+        "conditionally_required_fields": [
+            {
+                "field": "business_justification",
+                "required_above": "50000.00",
+                "required_for_emergency": True,
+                "required_for_categories": ["SOFTWARE", "HAZARDOUS_CHEMICALS", "VEHICLES"],
+            }
         ],
         "approval_tiers": [
             {"up_to": "50000.00", "approver_role": None},

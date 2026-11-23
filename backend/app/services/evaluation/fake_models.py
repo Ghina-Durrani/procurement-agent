@@ -49,8 +49,13 @@ def _urgency(case: EvaluationCase) -> dict[str, Any]:
     return {"level": level, "evidence": None if level == "NORMAL" else case.request_text}
 
 
+def _instructions(case: EvaluationCase) -> dict[str, Any]:
+    found = case.expected_instructions_to_system
+    return {"found": found, "evidence": case.request_text if found else None}
+
+
 def _reply_for_b(case: EvaluationCase) -> dict[str, Any]:
-    return {**_fields(case), "urgency": _urgency(case), "notes": []}
+    return {**_fields(case), "urgency": _urgency(case), "instructions_to_system": _instructions(case), "notes": []}
 
 
 def _reply_for_a(case: EvaluationCase) -> dict[str, Any]:
