@@ -9,8 +9,8 @@ React + TypeScript + Vite. Read `ENGINEERING_HANDBOOK.md` first. Labels: `CLAUDE
 - **shadcn/ui (D-015):** base components are in `src/components/ui/` (badge, button, card, dialog, input, label, select, skeleton, sonner, table, textarea). Add new ones with the shadcn CLI (`components.json` is in `frontend/`), not by hand. Do not edit generated files without a reason. Feature code imports them as `@/components/ui/button`. In your own code, import `cn` from `@/lib/utils`; the generated files import it from the `cn` package (the official shadcn-ui one), which `lib/utils.ts` re-exports.
 - Tooling: ESLint (flat config, with strict custom rules), Prettier, Husky + lint-staged pre-commit hook, Vitest + React Testing Library + jest-dom + MSW (installed, no handlers written yet).
 - Code: `App.tsx` (placeholder), `components/domain/PolicyOutcomeBadge.tsx` (+ test), `lib/api-client.ts`, `lib/utils.ts` (`cn`), `styles/tokens.css`, `test/setup.ts`.
-- **Not present yet:** any feature folder, router setup, React Query provider, forms, MSW handlers, `src/types/api.generated.ts` (created by `npm run gen:api`).
-- Libraries being installed does not mean they are wired up. The patterns below for them are PROPOSED until a first feature uses them.
+- **Added 2026-11-24 (first vertical slice):** `features/requests/` (my requests, new request, request details; `api.ts`, `hooks.ts`, `schemas.ts`, `labels.ts`, `components/`, `index.ts`); `App.tsx` with one `QueryClientProvider` and the `react-router` route table; `src/types/api.generated.ts` (generated, committed); `api-client.ts` reads the backend error envelope (`toApiError`); MSW set up in `test/setup.ts` with `onUnhandledFrame: 'error'` (MSW 3 name), so a test fails if any request is not mocked; `test/render.tsx` (`renderAt`) and `test/requests-data.ts`.
+- The server-state, forms and routing patterns below are now IN REPO through the `requests` feature; copy it for the next feature.
 
 ## 2. Rules enforced by tooling (IN REPO) — do not work around them
 
@@ -78,7 +78,7 @@ A feature may import from `@/components`, `@/lib`, and other features' `index.ts
 
 **Routing (PROPOSED)** — `react-router`; route table in one place; one page component per route; protected routes check auth state, but real authorization is server-side.
 
-**Errors** — `apiRequest` throws `ApiError` (`code`, `message`, `fieldErrors?`) (IN REPO). Screens show `message` to the user; they never show raw server text that could contain internals. Note the open mismatch with the backend envelope (Handbook §3, Q-002).
+**Errors** — `apiRequest` throws `ApiError` (`code`, `message`, `fieldErrors?`) (IN REPO). Screens show `message` to the user; they never show raw server text that could contain internals. Q-002 is closed: the client reads the backend envelope (Handbook §3, Q-002).
 
 **Loading/empty/error states** — every data-driven view renders all three explicitly.
 
@@ -98,5 +98,5 @@ A feature may import from `@/components`, `@/lib`, and other features' `index.ts
 
 ## 7. Known gaps
 
-- Backend CORS must allow the dev origin before the first real API call works from the browser (Q-003).
+- CORS allows the Vite dev origins (D-060); change `CORS_ORIGINS` in `.env` for any other origin.
 - UI primitive library is OPEN (D-015): Tailwind 4 is chosen, and the ignore patterns suggest a vendored-primitives approach in `components/ui`, but no primitives or generator config exist yet. Do not add a large UI framework without a decision.

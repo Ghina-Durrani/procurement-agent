@@ -1,7 +1,10 @@
 """FastAPI entry point for Module 1 (Requirement Extraction)."""
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.requests import router as requests_router
 from app.config import get_settings
+from app.core.errors import install_error_handlers
 
 
 def create_app() -> FastAPI:
@@ -22,6 +25,15 @@ def create_app() -> FastAPI:
         # Says nothing about internals; only that the app is running.
         return {"status": "ok"}
 
+    # Only the listed browser origins may call the API (Q-003); no cookies are used yet.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
+    install_error_handlers(app)
+    app.include_router(requests_router, prefix="/api/v1")
     return app
 
 

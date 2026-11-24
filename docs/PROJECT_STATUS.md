@@ -2,7 +2,7 @@
 
 Living progress record. Update it when a task changes state. Do not mark a task Done unless its acceptance criteria and tests are satisfied and the checks were actually run. **The application does not work end to end yet:** its main parts work and are tested on their own, but no application workflow joins them (section 3).
 
-**Last audit:** 2026-11-24 (D-057). Branch `feat/extraction-slice` at `09fb79c`, 15 commits ahead of `main` (`14f9bd5`) and **not merged**. Checks in section 5 were run in a cloud sandbox on that date; the real-model runs in section 4 were run on Maira's laptop.
+**Last audit:** 2026-11-24 (D-057), updated the same day when the first vertical slice was finished (tasks 1 to 4). Branch `feat/extraction-slice`, ahead of `main` (`14f9bd5`) and **not merged**. Checks in section 5 were run in a cloud sandbox on that date; the real-model runs in section 4 were run on Maira's laptop.
 
 ## 1. Agreed roadmap from here (D-057)
 
@@ -17,6 +17,8 @@ The team built the uncertain parts first on purpose: the policy engine, the AI e
 
 No new development datasets, weaker-model experiments or major redesigns without discussing the need first.
 
+**Where we are (2026-11-24):** step 1 waits for Groq's daily allowance (section 4), so step 4 started in parallel, as agreed by Maira. **The first vertical slice is built and tested** (tasks 1 to 4, section 3.1). It has been checked against a live backend, but not yet clicked through in a real browser. Next: step 5 extensions, starting with clarification.
+
 **First vertical slice (target of step 4).** Reuses the existing parts:
 employee submits a request in a minimal React form → API receives it → database stores the original → Groq extraction → evidence checks → policy engine → decision, rule IDs and reasons saved → the employee opens the request and sees its status.
 
@@ -28,11 +30,11 @@ employee submits a request in a minimal React form → API receives it → datab
 |---|---|---|---|
 | 1 | Repository and environment audit | Done | 2026-11-05; re-audited 2026-11-24 |
 | 2 | Environment baseline | Done | Backend and frontend checks pass; backend reaches PostgreSQL in tests. `docker compose up` was not run in the sandbox |
-| 3 | Minimal data/API vertical slice | **Not started** | Next after the challenge review (D-057). Schema exists; no endpoint or workflow uses it |
+| 3 | Minimal data/API vertical slice | **Done (first slice)** | Tasks 1 to 4: React form → API → database → extraction (fake or live AI) → evidence checks → policy engine → decision and reasons saved → status page. Not yet tried in a real browser |
 | 4 | Deterministic policy engine | Done | `backend/app/policy/`, 125 tests; not yet called by any app workflow |
-| 5 | Extraction interface and provider | Done (not integrated) | One Groq call per request, evidence checks, tried on real Groq. Clarification loop not built |
+| 5 | Extraction interface and provider | Done, integrated | Used by the app since slice task 3 (D-059). Clarification loop not built |
 | 6 | Human review and audit | Not started | Tables exist (`approvals`, `audit_events`); no logic |
-| 7 | Minimal UI | Not started | Base components only; no screens |
+| 7 | Minimal UI | In progress | Employee screens: my requests, new request, request details (slice tasks 2 and 4). No reviewer screens |
 | 8 | Evaluation: System A vs System B | In progress | Dev run 1 done; challenge run in progress; final 50-case run waits until near the end (D-057) |
 | 9 | Demo and report readiness | Not started | |
 
@@ -51,35 +53,35 @@ employee submits a request in a minimal React form → API receives it → datab
 | Priority step: urgency signal plus deadline → proposed priority and a "due soon" tag | branch | 50 (`tests/urgency`) | D-049 |
 | Evaluation framework: System A (AI decides from rules in its prompt), System B runner (the product pipeline), `run`, `check_cases` and `metrics` commands, resumable runs, prompt fingerprints, one final run per system | branch | 122 (`tests/evaluation`) | D-045, D-047, D-050 |
 | Evaluation data: 80 main cases (30 dev verified by Maira, 50 test draft, split locked); 40 challenge cases (39 machine-validated, 1 disputed); independent reference version of the rules used to check labels | branch | in `tests/evaluation` | D-047, D-056 |
+| Request intake API (slice task 1): `POST /api/v1/requests` (201, original text saved unchanged, status `RECEIVED`, one `REQUEST_RECEIVED` audit event in the same transaction), `GET /api/v1/requests/{id}` and `GET /api/v1/requests` (own requests only, `{items, total}`); standard error envelope for every error; development-only current user (D-058) and demo seed command | branch (`app/api/`, `app/core/errors.py`, `app/schemas/`, `app/services/intake/`) | 19 (`tests/api`, need PostgreSQL) + 4 (`tests/test_errors.py`) | Cross-company and colleague reads give 404; client cannot set organization, requester or status. Also run against a live server on 2026-11-24. No AI call yet |
+| Processing in the app (slice task 3): after saving, the System B pipeline runs (one extraction call, evidence checks, priority, company facts from the database, policy engine) and saves the extraction, the policy evaluation with its exact input, the request columns, the status and two audit events; failures save a fail-closed decision. `EXTRACTION_MODE` fake (default, no tokens) or live (D-059) | branch (`app/services/intake/processing.py`, `company_facts.py`, `llm.py`) | 11 (`tests/api/test_request_processing.py`) + 6 (`tests/test_intake_llm.py`) | Tested outcomes: CONTINUE, missing amount, blocked supplier, manager approval, AI failure, no settings (no AI call), no budget, instructions in text, other company's supplier list. The AI is always a scripted fake in tests |
+| Employee screens (slice tasks 2 and 4): `features/requests` with my requests, new request (React Hook Form + zod) and request details (decision with `PolicyOutcomeBadge`, reasons, missing details, what was read, which AI read it); React Query and react-router set up in `App.tsx`; API types generated from the real OpenAPI schema; `api-client.ts` reads the error envelope (Q-002); CORS (D-060) | branch (`frontend/src/features/requests/`, `src/types/api.generated.ts`) | 17 frontend tests (MSW; an unmocked request fails the test) | All untrusted text is rendered as plain text (tested). Checked against a live backend from the dev origin; **not yet tried in a real browser** |
 | Frontend scaffold: React 19, Vite 8, TS strict, Tailwind 4, shadcn/ui base components, `PolicyOutcomeBadge`, `apiRequest` client, lint and format rules | `main` | 3 | Checks re-run 2026-11-24 |
 
 ### 3.2 Implemented but not integrated
 
 Each part below works and is tested **on its own**. No application workflow connects them yet.
 
-- **Policy engine:** only the evaluation code and tests call it.
-- **Extraction agent and priority step:** only the evaluation code, tests and Maira's local test script call them. No API endpoint calls them.
-- **Database schema:** no application code saves or reads requests, extractions, policy evaluations or audit events.
-- **Frontend components:** `PolicyOutcomeBadge` and `apiRequest` exist, but there is no screen and no endpoint to call.
+- **Live AI in the app:** built and tested only through its fail-closed path (no key). Not yet run against real Groq from the app; do that only when the token allowance is free.
+- **Schema tables for later steps:** clarifications, approvals, quotations, purchase orders and the rest exist but no app code uses them yet.
 
 ### 3.3 In progress
 
-- **40-case challenge experiment:** System B run started on Maira's laptop on 2026-11-24; System A not yet run; no results received or recorded.
+- **40-case challenge experiment:** System B run 1 finished on Maira's laptop on 2026-11-24, but from CH-032 Groq's free daily token limit (200,000 tokens) was reached: CH-032, 034, 036, 038 and 040 never got a model answer and ended in fail-closed `HUMAN_REVIEW` (confirmed: `LLMRateLimited` errors, 34 rate-limit waits). Its scores (84.6% decision accuracy) are therefore **not a clean estimate** and are not reported as results. Plan: run System A alone on a day with fresh allowance, then a fresh full System B run; the run folder stays on Maira's laptop as a record.
 - **50 held-out test labels:** still draft. They must be verified before the final run near the end.
 - **Merging `feat/extraction-slice` into `main`:** not done (15 commits). D-046 says finished tasks are merged; the merge needs the team's agreement.
 - **D-037 / D-038 (schema) approval:** schema is on `main`, approval still PROPOSED.
 
 ### 3.4 Not started
 
-- Request submission and retrieval API (`/api/v1/...`), schemas at the API boundary, thin routers.
-- Saving requests, extraction results and policy decisions through an application workflow (service layer).
+- Real login (D-011); today only the development stand-in exists (D-058).
 - Clarification workflow, at most two rounds (D-029).
 - Human review queue and approvals (separate from clarification), with role checks.
 - Authentication and role-based access (D-011, Q-004).
 - Audit event recording by the application.
 - Request states and transitions.
 - Frontend screens: request form, request status, review queue, history.
-- Standard error envelope and CORS (Q-002, Q-003), README, CI.
+- README, CI.
 - Later modules: supplier matching, RFQs, quotation extraction and comparison, Finance Agent, purchase orders, reporting. Some have tables (D-038) but no logic.
 
 ## 4. Experiments and results
@@ -88,7 +90,7 @@ Each part below works and is tested **on its own**. No application workflow conn
 |---|---|---|---|---|
 | Live check T1 to T6 | 6 synthetic requests | Groq `openai/gpt-oss-120b` | Done (2026-11-22/23, Maira's laptop) | Found two prompt problems (category left empty; "categorise as..." obeyed), fixed by D-052. After the fixes all 6 matched the expected answers |
 | **Dev run 1** | 30 verified dev cases | same, for both systems | **Done and recorded** (2026-11-23, code `dc9be8c`) | Both systems 30/30 correct decisions, 0 false allows. System B better on rule lists (93.3% vs 90.0%), field status (97.0% vs 94.7%) and field values (95.6% vs 92.1%); System A better on urgency (100% vs 96.7%). Files in `evaluation/results/` |
-| Challenge run | 40 challenge cases (39 scored) | same | **In progress**, no results yet | Prepared at `09fb79c`. Known in advance: CH-005 (amount in words) goes to review in System B; CH-011 (total vs item prices) is likely missed by both |
+| Challenge run | 40 challenge cases (39 scored) | same | **In progress.** System B run 1 hit the daily token limit (5 cases without a model answer), so it is not counted; System A not run | Valid answers in that run already show two false allows, CH-011 and CH-027 (section 7, issues 13 and 14). Clean runs for both systems still needed |
 | Final run | 50 held-out test cases | same | Not started; near the end (D-057) | Labels still draft |
 
 The dev cases did not separate the two systems on decisions. That is a finding, not a failure. Limits: synthetic English requests, one model, development data only. Details: `docs/EVALUATION_CASES.md` §8 and §9, `evaluation/results/README.md`.
@@ -97,14 +99,15 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Check | Result |
 |---|---|
-| `pytest` (backend/), PostgreSQL 16 running | **614 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, basic 6 |
-| `pytest -m "not integration"` (no database) | 487 passed, 127 deselected |
-| `mypy app` | no issues in 45 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
+| `pytest` (backend/), PostgreSQL 16 running | **654 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, API 30, basic and app settings 16 (after the first slice) |
+| `pytest -m "not integration"` (no database) | 497 passed, 157 deselected |
+| `mypy app` | no issues in 59 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
 | `check_cases` (80 main cases) | no problems; 30 verified, 50 draft |
 | `check_cases --dataset challenge` | no problems; 39 machine-validated, 1 disputed |
 | Frontend `npm run typecheck`, `lint`, `format:check` | clean |
-| Frontend `npm test` | 1 file, 3 tests passed |
-| Frontend `npm run build` | succeeded (250 kB, 81 kB gzip) |
+| Frontend `npm test` | 3 files, 17 tests passed |
+| Frontend `npm run build` | succeeded (456 kB, 145 kB gzip; router, React Query and forms added) |
+| Live check | backend + Vite dev server: CORS preflight and a submission from the dev origin worked (dev case EV-005 → CONTINUE, APPROVED); EV-009 → HUMAN_REVIEW, NEEDS_CLARIFICATION |
 | `npm audit` | not re-run; 7 moderate findings from 2026-11-05 not triaged (Q-009) |
 | `docker compose up`, migrations on teammates' machines | not run |
 
@@ -132,15 +135,24 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 10. Both prompts say "never calculate", so a total that disagrees with item prices is not detected (challenge case CH-011).
 11. The Groq free tier is limited (check the Groq console). Runs use `--pause` and can be resumed.
 12. `PROJECT_STATUS.md` fell behind the code between 2026-11-12 and 2026-11-24; fixed by this audit. Keep it updated at each milestone (D-057).
+13. **Unresolved safety finding, CH-011 (false allow, both systems expected):** "10 webcams at Rs 4,000 each ... total Rs 35,000". The model took the stated total; the quote exists, so the evidence check passed, and no code compares quantity × unit price with the total. Someone could understate a total to stay under approval limits. Smallest safe fix (not built): the model quotes a unit price with evidence, and code does the multiplication; a mismatch makes the total `CONFLICTING` (POL-001). Needs one field added to the shared field rules, so System A gets the same text.
+14. **Unresolved safety finding, CH-027 (false allow, System B):** "from Metro Furniture or QuickDeal Imports" (QuickDeal is blocked). The model correctly said supplier `AMBIGUOUS`, but `to_policy_input` sets `supplier_conflict` only for `CONFLICTING`, so the engine saw "no supplier" and POL-005 did not fire. Smallest safe fix (not built): treat an `AMBIGUOUS` supplier like `CONFLICTING` in that one function, so POL-005 gives `HUMAN_REVIEW`. The blocked supplier would still be stopped at `PRE_PO`. Both fixes wait for D-057 step 3, after clean runs.
+15. The development current user (D-058) is not authentication. Anyone who can reach the dev API acts as the demo user. It refuses every call outside development.
+16. The app's fake AI (default) only knows the 30 dev case texts; any other text fails closed to `HUMAN_REVIEW` (POL-900). Use `EXTRACTION_MODE=live` to try your own text, which spends Groq tokens.
+17. When the amount is missing, the app also shows POL-007 (budget cannot be checked), unlike the experiment, where `context.json` assumes the budget is available (D-059).
+18. Processing runs inside the submit call, so a live AI call adds a few seconds to the response. A background job can come later if needed.
+19. The new screens have not been clicked through in a real browser yet.
 
 ## 8. Next milestone
 
-**Milestone 3: the first vertical slice** (section 1), after the challenge results are analysed and any critical failure is fixed. Before the first endpoint: approve the API conventions and error envelope (D-023, Q-002) and CORS (Q-003).
+**Step 5, first extension: clarification** (at most 2 rounds, D-029): a request in `NEEDS_CLARIFICATION` asks the employee for the missing details, re-runs extraction and the policy engine, and after 2 rounds goes to human review. Then the review queue (`AWAITING_APPROVAL`), audit history and request states. First, try the slice in a real browser on Maira's laptop. The challenge runs continue separately when Groq allows.
 
 ## 9. Change log (newest first; one line per merged task)
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-24 | Maira Qazi | First vertical slice finished: tasks 2 to 4 (employee screens, processing with extraction and the policy engine, decision and reasons on the status page), fake/live AI setting and CORS (D-059, D-060), Q-002 and Q-003 closed; 17 backend and 14 frontend tests added |
+| 2026-11-24 | Maira Qazi | Vertical slice task 1: request intake API (submit, save, retrieve), error envelope, development current user (D-058), demo seed; 23 new tests. Challenge run status corrected (rate-limited, not counted); CH-011 and CH-027 recorded as unresolved safety findings |
 | 2026-11-24 | Maira Qazi | Documentation audit (D-057): `PROJECT_STATUS.md` rewritten from the real repository state (four status groups, verified checks, experiments, agreed roadmap); stale claims corrected in `TECH_STACK_AND_DECISIONS.md`, `DECISIONS.md`, `BACKEND_GUIDE.md`, `FYP_MASTER_CONTEXT.md` (facts only, scope unchanged), `EXTRACTION_MODULE_DESIGN.md`, `EVALUATION_CASES.md` and `CLAUDE.md`. Documentation only |
 | 2026-11-24 | Maira Qazi | Challenge set: CH-011 and CH-027 decided (`HUMAN_REVIEW`), CH-023 stays disputed (no written rule for mixed personal use); 39 machine-validated, 1 disputed; no engine, prompt or main-case changes |
 | 2026-11-24 | Maira Qazi | D-056: 40-case development challenge set with machine-validated labels (draft = independent reference policy = engine), 3 disputed cases flagged, near-copy checks, `--dataset challenge` for run/check/metrics; reference check added for the 80 main cases (all agree); 24 new tests (613 pass with the database). Not run yet |
