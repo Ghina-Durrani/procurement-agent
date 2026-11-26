@@ -12,7 +12,7 @@ Three people work in this repo, each with their own Claude, all pushing to `main
 
 Do these in order **before writing any code**:
 
-1. **Sync:** `git pull --rebase origin main`, then `git log --oneline -15` and `git status`.
+1. **Sync:** `git pull --rebase origin main`, then `git log --oneline -15` and `git status`. On `feat/extraction-slice` use `git pull origin feat/extraction-slice` instead; never rebase that pushed branch onto `main` (it is merged only when the team agrees, D-046).
 2. **Read:** `docs/PROJECT_STATUS.md` (what exists, what is in progress), then the guides relevant to your task:
    - Always: `docs/ENGINEERING_HANDBOOK.md`, `docs/DECISIONS.md`
    - Backend work: `docs/BACKEND_GUIDE.md`
@@ -52,6 +52,8 @@ Put new work in new files inside your own feature folder wherever possible.
 | Create venv (once) | repo root | `py -m venv .venv` then `.\.venv\Scripts\Activate.ps1` |
 | Install backend deps | `backend/` | `pip install -r requirements.txt` |
 | Start database | repo root | `docker compose up -d` (check: `docker compose ps`) |
+| Create/update tables | `backend/` | `alembic upgrade head` (database must be running) |
+| Demo company (once) | `backend/` | `python -m app.services.intake.seed_demo` (needs `DEMO_USER_EMAIL` in `.env`, D-058) |
 | Run API | `backend/` | `uvicorn app.main:app --reload` (http://127.0.0.1:8000, docs at `/docs` in development) |
 | Backend tests | `backend/` | `pytest` |
 | Install frontend deps | `frontend/` | `npm install` (this also installs the Git pre-commit hook) |
@@ -60,6 +62,8 @@ Put new work in new files inside your own feature folder wherever possible.
 | Regenerate API types | `frontend/` | `npm run gen:api` (backend must be running) |
 
 Backend commands must be run from `backend/`: `pytest.ini` and the `.env` path (`../.env`) are relative to it.
+
+To run the app, `.env` needs (see `.env.example`): `DEMO_USER_EMAIL=demo.employee@example.test` and `EXTRACTION_MODE=fake` (no AI tokens; `live` calls Groq, D-059). Never open, print or change `LLM_API_KEY`.
 
 ## 5. Adding a feature: checklist
 
