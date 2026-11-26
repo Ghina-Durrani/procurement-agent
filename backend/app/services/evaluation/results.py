@@ -60,6 +60,8 @@ class RunInfo(_Strict):
     started_at: AwareDatetime
     finished_at: AwareDatetime | None = None
     rate_limit_waits: int = 0
+    # Cases run again with --retry-failed because they never got a model answer (D-061).
+    retried_cases: list[str] = []
 
 
 def field_value(value: Any) -> int | str | None:
@@ -77,6 +79,24 @@ def append_result(path: Path, result: CaseResult) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(result.model_dump_json() + "\n")
+
+
+# Errors from the connection or the provider, not from the model's answer. A case that
+# ended in one of these never reached the model, so it may be run again (D-061). An answer
+# the model did give, even an unusable one, is a result and is never retried.
+PROVIDER_ERRORS = ("LLMRequestFailed", "LLMRateLimited")
+
+
+def is_provider_failure(result: CaseResult) -> bool:
+    return bool(result.error) and str(result.error).split(":", 1)[0] in PROVIDER_ERRORS
+
+
+def latest_results(results: list[CaseResult]) -> list[CaseResult]:
+    """One result per case: the last one saved. The file itself keeps every attempt."""
+    latest: dict[str, CaseResult] = {}
+    for result in results:
+        latest[result.case_id] = result
+    return list(latest.values())
 
 
 def read_results(path: Path) -> list[CaseResult]:

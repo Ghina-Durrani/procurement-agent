@@ -30,6 +30,8 @@ from .results import (
     RunInfo,
     SystemName,
     append_result,
+    is_provider_failure,
+    latest_results,
     read_results,
     read_run_info,
     write_run_info,
@@ -67,6 +69,7 @@ def run(
     log: Callable[[str], None] = print,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
     dataset: str = "main",
+    retry_failed: bool = False,
 ) -> RunInfo:
     """Run one system over one split. Continues a run already in run_dir."""
     context = load_context()
@@ -90,9 +93,21 @@ def run(
         )
         write_run_info(info_path, info)
 
-    done = {result.case_id for result in read_results(results_path)}
+    saved = latest_results(read_results(results_path))
+    case_ids = {case.case_id for case in cases}
+    retry = [
+        result.case_id
+        for result in saved
+        if retry_failed and is_provider_failure(result) and result.case_id in case_ids
+    ]
+    done = {result.case_id for result in saved} - set(retry)
     runner = RUNNERS[system][0]
     todo = [case for case in cases if case.case_id not in done]
+    if retry:
+        # Old lines stay in results.jsonl; the new answer is appended and scored instead.
+        log(f"Retrying {len(retry)} case(s) that never got a model answer: {', '.join(retry)}")
+        info = info.model_copy(update={"retried_cases": info.retried_cases + retry})
+        write_run_info(info_path, info)
     log(f"Run {run_dir.name}: {len(done)} done, {len(todo)} to go.")
     for index, case in enumerate(todo, start=1):
         result = runner(case, llm, context)
@@ -139,12 +154,16 @@ def _main(argv: list[str] | None) -> int:
     parser.add_argument("--fake", action="store_true", help="dry run with the fake model")
     parser.add_argument("--final", action="store_true", help="confirm the one final test run")
     parser.add_argument("--resume", type=Path, help="continue the run in this folder")
+    parser.add_argument("--retry-failed", action="store_true",
+                        help="with --resume: run again the cases that never reached the model (D-061)")
     parser.add_argument("--pause", type=float, default=0.0, help="seconds to wait between cases")
     parser.add_argument("--limit", type=int, help="only the first N cases (for a quick try)")
     parser.add_argument("--dataset", choices=sorted(DATASETS), default="main",
                         help="main: the 80 cases; challenge: the separate development challenge set")
     args = parser.parse_args(argv)
 
+    if args.retry_failed and not args.resume:
+        parser.error("--retry-failed needs --resume <run folder>")
     if args.resume:
         info = read_run_info(args.resume / "run.json")
         system, split, fake, run_dir, model = info.system, info.split, info.fake_model, args.resume, info.model
@@ -179,7 +198,7 @@ def _main(argv: list[str] | None) -> int:
             return 1
     info = run(
         system=system, split=split, llm=llm, model=model, fake_model=fake, run_dir=run_dir,
-        pause_seconds=args.pause, limit=args.limit, dataset=dataset,
+        pause_seconds=args.pause, limit=args.limit, dataset=dataset, retry_failed=args.retry_failed,
     )
     print(f"\nSaved to {run_dir}. Score it with:\n  python -m app.services.evaluation.metrics {run_dir}")
     if info.fake_model:

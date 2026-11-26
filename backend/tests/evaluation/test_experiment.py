@@ -433,3 +433,72 @@ def test_b_does_not_require_a_reason_for_a_small_ordinary_purchase() -> None:
     reply = b_reply("EV-005", business_justification={"status": "MISSING", "value": None, "evidence": None})
     result = run_system_b(BY_ID["EV-005"], FakeLLMClient([reply]), CONTEXT)
     assert result.decision is CONTINUE
+
+
+# --- Retrying cases that never reached the model (D-061) --------------------------------
+
+
+class _FlakyLLM:
+    """The label echo, except chosen cases fail: by connection, or by an unusable answer."""
+
+    def __init__(self, system: SystemName, offline: set[str] = frozenset(), garbled: set[str] = frozenset()) -> None:  # type: ignore[assignment]
+        self._echo = LabelEchoLLM(ALL_CASES, system)
+        # System A and B wrap the request differently, so match on the request text itself.
+        self._offline = [BY_ID[c].request_text for c in offline]
+        self._garbled = [BY_ID[c].request_text for c in garbled]
+        self.calls = 0
+
+    def complete(self, system_prompt: str, user_message: str) -> str:
+        self.calls += 1
+        if any(text in user_message for text in self._offline):
+            raise LLMRequestFailed("The language model could not be reached.")
+        if any(text in user_message for text in self._garbled):
+            return "not json"
+        return self._echo.complete(system_prompt, user_message)
+
+
+DEV_IDS = [case.case_id for case in ALL_CASES if case.split is Split.DEV]
+
+
+@pytest.mark.parametrize("system", list(SystemName))
+def test_retry_reruns_only_cases_that_never_reached_the_model(tmp_path: Path, system: SystemName) -> None:
+    offline, garbled = set(DEV_IDS[3:5]), {DEV_IDS[7]}
+    _quiet_run(tmp_path, system=system, llm=_FlakyLLM(system, offline=offline, garbled=garbled))
+
+    plain = LabelEchoLLM(ALL_CASES, system)
+    _quiet_run(tmp_path, system=system, llm=plain, retry_failed=True)
+
+    assert plain.calls == len(offline)  # the unusable answer is a real result: not retried
+    lines = read_results(tmp_path / "results.jsonl")
+    assert len(lines) == 30 + len(offline)  # nothing deleted; new answers appended
+    info = read_run_info(tmp_path / "run.json")
+    assert sorted(info.retried_cases) == sorted(offline)
+
+
+def test_resume_without_the_flag_does_not_retry(tmp_path: Path) -> None:
+    _quiet_run(tmp_path, llm=_FlakyLLM(SystemName.B, offline={DEV_IDS[0]}))
+    plain = LabelEchoLLM(ALL_CASES, SystemName.B)
+    _quiet_run(tmp_path, llm=plain)
+    assert plain.calls == 0
+    assert read_run_info(tmp_path / "run.json").retried_cases == []
+
+
+def test_metrics_score_the_latest_result_and_name_the_retried_cases(tmp_path: Path) -> None:
+    from app.services.evaluation.metrics import score_run
+
+    offline = {DEV_IDS[2]}
+    _quiet_run(tmp_path, system=SystemName.A, llm=_FlakyLLM(SystemName.A, offline=offline))
+    before = score_run(tmp_path)
+    assert before.no_decision == 1
+
+    _quiet_run(tmp_path, system=SystemName.A, llm=LabelEchoLLM(ALL_CASES, SystemName.A), retry_failed=True)
+    after = score_run(tmp_path)
+    assert after.cases == 30 and after.no_decision == 0
+    assert after.retried_cases == sorted(offline)
+    assert "retried after connection errors" in render([after])
+
+
+def test_retry_flag_needs_a_run_folder(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        run_module.main(["--system", "A", "--retry-failed"])
+    assert "--retry-failed needs --resume" in capsys.readouterr().err

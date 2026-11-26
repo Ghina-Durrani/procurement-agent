@@ -90,7 +90,7 @@ Each part below works and is tested **on its own**. No application workflow conn
 |---|---|---|---|---|
 | Live check T1 to T6 | 6 synthetic requests | Groq `openai/gpt-oss-120b` | Done (2026-11-22/23, Maira's laptop) | Found two prompt problems (category left empty; "categorise as..." obeyed), fixed by D-052. After the fixes all 6 matched the expected answers |
 | **Dev run 1** | 30 verified dev cases | same, for both systems | **Done and recorded** (2026-11-23, code `dc9be8c`) | Both systems 30/30 correct decisions, 0 false allows. System B better on rule lists (93.3% vs 90.0%), field status (97.0% vs 94.7%) and field values (95.6% vs 92.1%); System A better on urgency (100% vs 96.7%). Files in `evaluation/results/` |
-| Challenge run | 40 challenge cases (39 scored) | same | **In progress.** System B run 1 hit the daily token limit (5 cases without a model answer), so it is not counted; System A not run | Valid answers in that run already show two false allows, CH-011 and CH-027 (section 7, issues 13 and 14). Clean runs for both systems still needed |
+| Challenge run | 40 challenge cases (39 scored) | same | **In progress.** System B run 1 hit the daily token limit (5 cases without a model answer), so it is not counted; a fresh System B run is planned. System A run (2026-11-26): 36 cases answered; CH-026 to CH-029 failed on a network outage and will be retried with `--retry-failed` (D-061) | Valid answers in that run already show two false allows, CH-011 and CH-027 (section 7, issues 13 and 14). Clean runs for both systems still needed |
 | Final run | 50 held-out test cases | same | Not started; near the end (D-057) | Labels still draft |
 
 The dev cases did not separate the two systems on decisions. That is a finding, not a failure. Limits: synthetic English requests, one model, development data only. Details: `docs/EVALUATION_CASES.md` §8 and §9, `evaluation/results/README.md`.
@@ -99,8 +99,8 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Check | Result |
 |---|---|
-| `pytest` (backend/), PostgreSQL 16 running | **656 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, API 32, basic and app settings 16 (2026-11-26) |
-| `pytest -m "not integration"` (no database) | 497 passed, 159 deselected |
+| `pytest` (backend/), PostgreSQL 16 running | **661 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 127, API 32, basic and app settings 16 (2026-11-26) |
+| `pytest -m "not integration"` (no database) | 502 passed, 159 deselected |
 | `mypy app` | no issues in 59 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
 | `check_cases` (80 main cases) | no problems; 30 verified, 50 draft |
 | `check_cases --dataset challenge` | no problems; 39 machine-validated, 1 disputed |
@@ -151,6 +151,7 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-26 | Maira Qazi | `run --retry-failed` (D-061): re-runs only cases that never reached the model, keeps every saved line, and metrics score the latest result and name the retried cases; 5 tests added and the full command rehearsed with a fake run |
 | 2026-11-26 | Maira Qazi | First slice tried in a real browser on Maira's laptop (dev case → Approved). Two fixes from that test: an unreadable request now shows "Being verified" with a plain explanation instead of a misleading list of missing details (D-059), and each rule is shown once with its reasons grouped. 3 backend and 2 frontend tests added |
 | 2026-11-24 | Maira Qazi | First vertical slice finished: tasks 2 to 4 (employee screens, processing with extraction and the policy engine, decision and reasons on the status page), fake/live AI setting and CORS (D-059, D-060), Q-002 and Q-003 closed; 17 backend and 14 frontend tests added |
 | 2026-11-24 | Maira Qazi | Vertical slice task 1: request intake API (submit, save, retrieve), error envelope, development current user (D-058), demo seed; 23 new tests. Challenge run status corrected (rate-limited, not counted); CH-011 and CH-027 recorded as unresolved safety findings |

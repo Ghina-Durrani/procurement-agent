@@ -33,7 +33,7 @@ from app.services.extraction.schemas import EXTRACTED_FIELDS
 
 from .cases import CaseFileError, EvaluationCase, LabelStatus, load_dataset
 from .context import load_context
-from .results import CaseResult, PredictedField, RunInfo, read_results, read_run_info
+from .results import CaseResult, PredictedField, RunInfo, latest_results, read_results, read_run_info
 
 CONTINUE = PolicyOutcome.CONTINUE
 BLOCK = PolicyOutcome.BLOCK
@@ -87,6 +87,7 @@ class Score:
     by_category: dict[str, dict[str, Any]] = field(default_factory=dict)
     disputed_left_out: int = 0
     dataset: str = "main"
+    retried_cases: list[str] = field(default_factory=list)
 
 
 def score(cases: list[EvaluationCase], results: list[CaseResult], info: RunInfo) -> Score:
@@ -214,6 +215,10 @@ def render(scores: list[Score]) -> str:
     for item in scores:
         if item.false_allows:
             lines.append(f"\nSystem {item.system} let through: {', '.join(item.false_allows)}")
+    for item in scores:
+        if item.retried_cases:
+            retried = ', '.join(item.retried_cases)
+            lines.append(f"\nSystem {item.system} retried after connection errors: {retried}")
     return "\n".join(lines)
 
 
@@ -221,7 +226,9 @@ def score_run(run_dir: Path) -> Score:
     info = read_run_info(run_dir / "run.json")
     everything = load_dataset(info.dataset, split=info.split, for_scoring=False)
     cases = load_dataset(info.dataset, split=info.split, for_scoring=True)
-    result = score(cases, read_results(run_dir / "results.jsonl"), info)
+    # Only the last result of each case counts; retried cases keep their old lines (D-061).
+    result = score(cases, latest_results(read_results(run_dir / "results.jsonl")), info)
+    result.retried_cases = list(info.retried_cases)
     result.disputed_left_out = sum(case.label_status is LabelStatus.DISPUTED for case in everything)
     result.dataset = info.dataset
     return result
