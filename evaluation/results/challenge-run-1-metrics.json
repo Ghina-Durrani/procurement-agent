@@ -1,0 +1,172 @@
+[
+  {
+    "system": "A",
+    "run_id": "20261126-132518-A-challenge-openai-gpt-oss-120b",
+    "fake_model": false,
+    "cases": 39,
+    "no_decision": 0,
+    "decision_accuracy": 0.8461538461538461,
+    "false_allow_rate": 0.038461538461538464,
+    "false_allows": [
+      "CH-011"
+    ],
+    "missed_block_rate": 0.0,
+    "over_escalation_rate": 0.3076923076923077,
+    "escalation_precision": 0.8620689655172413,
+    "escalation_recall": 0.9615384615384616,
+    "rules_exact_match": 0.6153846153846154,
+    "roles_exact_match": 0.6410256410256411,
+    "field_status_accuracy": 0.9358974358974359,
+    "field_value_accuracy": 0.9325842696629213,
+    "missing_precision": 0.45454545454545453,
+    "missing_recall": 0.8333333333333334,
+    "urgency_accuracy": 1.0,
+    "by_category": {
+      "above_threshold": {
+        "cases": 13,
+        "correct": 12,
+        "false_allows": 0,
+        "decision_accuracy": 0.9230769230769231
+      },
+      "ambiguous": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "complete_valid": {
+        "cases": 8,
+        "correct": 7,
+        "false_allows": 0,
+        "decision_accuracy": 0.875
+      },
+      "conflicting": {
+        "cases": 6,
+        "correct": 3,
+        "false_allows": 1,
+        "decision_accuracy": 0.5
+      },
+      "emergency_claimed": {
+        "cases": 1,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "informal_noisy": {
+        "cases": 2,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 0.5
+      },
+      "missing_required": {
+        "cases": 1,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prohibited": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prompt_injection": {
+        "cases": 2,
+        "correct": 2,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      }
+    },
+    "disputed_left_out": 1,
+    "dataset": "challenge",
+    "retried_cases": [
+      "CH-026",
+      "CH-027",
+      "CH-028",
+      "CH-029"
+    ]
+  },
+  {
+    "system": "B",
+    "run_id": "20261126-171456-B-challenge-openai-gpt-oss-120b",
+    "fake_model": false,
+    "cases": 39,
+    "no_decision": 0,
+    "decision_accuracy": 0.8974358974358975,
+    "false_allow_rate": 0.07692307692307693,
+    "false_allows": [
+      "CH-011",
+      "CH-027"
+    ],
+    "missed_block_rate": 0.0,
+    "over_escalation_rate": 0.15384615384615385,
+    "escalation_precision": 0.9230769230769231,
+    "escalation_recall": 0.9230769230769231,
+    "rules_exact_match": 0.8461538461538461,
+    "roles_exact_match": 0.8461538461538461,
+    "field_status_accuracy": 0.9435897435897436,
+    "field_value_accuracy": 0.9775280898876404,
+    "missing_precision": 0.7333333333333333,
+    "missing_recall": 0.9166666666666666,
+    "urgency_accuracy": 1.0,
+    "by_category": {
+      "above_threshold": {
+        "cases": 13,
+        "correct": 13,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "ambiguous": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "complete_valid": {
+        "cases": 8,
+        "correct": 8,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "conflicting": {
+        "cases": 6,
+        "correct": 3,
+        "false_allows": 2,
+        "decision_accuracy": 0.5
+      },
+      "emergency_claimed": {
+        "cases": 1,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "informal_noisy": {
+        "cases": 2,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 0.5
+      },
+      "missing_required": {
+        "cases": 1,
+        "correct": 1,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prohibited": {
+        "cases": 3,
+        "correct": 3,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      },
+      "prompt_injection": {
+        "cases": 2,
+        "correct": 2,
+        "false_allows": 0,
+        "decision_accuracy": 1.0
+      }
+    },
+    "disputed_left_out": 1,
+    "dataset": "challenge",
+    "retried_cases": []
+  }
+]
