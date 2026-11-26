@@ -74,3 +74,12 @@ In short: B was more accurate, half as over-cautious and much better at giving t
 - The deterministic layer is only as safe as the code around it: finding 14 was a gap in our own glue code, not in the model or the rules.
 - Some failures are shared and need code, not prompts: neither model does arithmetic reliably (finding 13).
 - Limits: 39 synthetic English cases, one model, development data; small differences (one or two cases) are not statistically meaningful on their own.
+
+## After the analysis (2026-11-26)
+
+Fixes made after this run, so this run stays the pre-fix baseline (labels and result files unchanged):
+- D-062: findings 13 (CH-011) and 14 (CH-027).
+- D-063: CH-032 (invoice or payment company, Q-010), CH-005 (amount in words), CH-016 (supplier corrections).
+
+Replaying System B's saved answers through the fixed code changes only CH-027 (to the expected answer). CH-011, CH-016 and CH-032 depend on new prompt lines and CH-005 on the raw model answer, so they are confirmed only by a new live run (development data).
+

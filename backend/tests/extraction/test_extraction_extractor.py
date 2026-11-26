@@ -152,9 +152,18 @@ def test_common_ways_of_writing_money_are_accepted(text, quote, value):
     assert result.estimated_total == Decimal(value)
 
 
-def test_amount_written_only_in_words_is_discarded_because_it_cannot_be_checked():
+def test_amount_written_only_in_words_is_accepted_when_the_words_say_the_same_number():
+    # D-063: number words are read like digits (it used to be discarded).
     text = "Need 4 monitors, budget is fifty thousand rupees."
     evidence = {"estimated_total": "fifty thousand rupees"}
+    raw = as_reply({"estimated_total": 50000, "evidence": evidence})
+    result, _ = run([raw], text=text)
+    assert result.estimated_total == Decimal(50000)
+
+
+def test_amount_in_words_that_cannot_be_read_is_still_discarded():
+    text = "Need 4 monitors, budget is fifty grand."
+    evidence = {"estimated_total": "fifty grand"}
     raw = as_reply({"estimated_total": 50000, "evidence": evidence})
     result, _ = run([raw], text=text)
     assert result.estimated_total is None

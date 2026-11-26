@@ -187,6 +187,14 @@ class _LLMInstructions(BaseModel):
     evidence: str | None = Field(default=None, max_length=300)
 
 
+class _LLMPaymentParty(BaseModel):
+    """Who is bought from and who invoices or is paid, as quoted names (Q-010, D-063)."""
+
+    model_config = ConfigDict(extra="ignore")
+    order_from: str | None = Field(default=None, max_length=200)
+    invoice_or_payment: str | None = Field(default=None, max_length=200)
+
+
 class LLMReply(BaseModel):
     """The JSON object the model returns. A field it leaves out counts as MISSING."""
 
@@ -204,6 +212,7 @@ class LLMReply(BaseModel):
     business_justification: _TextField = Field(default_factory=_TextField)
     # Only used by code to check the stated total (finding 13). Not a stored request field.
     unit_price: _MoneyField = Field(default_factory=_MoneyField)
+    payment_party: _LLMPaymentParty = Field(default_factory=_LLMPaymentParty)
     urgency: _LLMUrgency = Field(default_factory=_LLMUrgency)
     instructions_to_system: _LLMInstructions = Field(default_factory=_LLMInstructions)
     notes: list[str] = Field(default_factory=list, max_length=20)

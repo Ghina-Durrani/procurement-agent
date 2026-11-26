@@ -200,13 +200,10 @@ def test_dry_run_on_the_challenge_set(tmp_path: Path, system: SystemName) -> Non
     assert read_run_info(run_dir / "run.json").case_count == 40
     result = score_run(run_dir)
     assert (result.cases, result.disputed_left_out) == (39, 1)
-    if system is SystemName.A:
-        assert result.decision_accuracy == 1.0
-    else:
-        # Known limit of System B, kept on purpose: CH-005 writes the amount in words, which the
-        # evidence check cannot match, so even a perfect answer goes to review (safe, not wrong).
-        assert result.false_allows == []
-        assert result.decision_accuracy == pytest.approx(38 / 39)
+    # Both systems reproduce the answer key. (System B used to miss CH-005, an amount written in
+    # words, until the evidence check learned to read number words, D-063.)
+    assert result.false_allows == []
+    assert result.decision_accuracy == 1.0
 
 
 def test_the_challenge_run_command_uses_the_dev_split_and_names_the_folder(

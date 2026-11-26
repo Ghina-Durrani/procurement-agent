@@ -52,9 +52,10 @@ def test_braces_in_the_request_do_not_break_the_prompt_builder():
 
 
 def test_system_prompt_says_a_clear_correction_is_not_a_conflict():
-    prompt = build_system_prompt(["FURNITURE"])
-    assert "A clear correction is not a conflict" in prompt
+    prompt = " ".join(build_system_prompt(["FURNITURE"]).split())
+    assert "A clear correction is not a conflict, for any detail" in prompt
     assert "the corrected value is PRESENT" in prompt
+    assert "Actually, order from Office Mart instead" in prompt  # supplier corrections too (D-063)
 
 
 def test_system_prompt_says_a_stated_purpose_is_a_reason():

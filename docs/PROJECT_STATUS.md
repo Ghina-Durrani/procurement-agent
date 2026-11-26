@@ -17,7 +17,7 @@ The team built the uncertain parts first on purpose: the policy engine, the AI e
 
 No new development datasets, weaker-model experiments or major redesigns without discussing the need first.
 
-**Where we are (2026-11-26):** steps 1 and 2 are done: clean, same-baseline challenge runs for both systems and their analysis (`evaluation/results/challenge-run-1-analysis.md`). Step 3: the two critical findings (13, 14) are fixed (D-062); one important finding (CH-032, Q-010) waits for a team decision. Step 4, the first vertical slice, is built and was tried in a real browser. **Next:** decide Q-010, confirm the CH-011 fix with one post-fix System B challenge run (development data), then step 5 (clarification). The final 50-case run stays near the end.
+**Where we are (2026-11-26):** steps 1 and 2 are done: clean, same-baseline challenge runs for both systems and their analysis (`evaluation/results/challenge-run-1-analysis.md`). Step 3 is done locally: findings 13 and 14 (D-062) and CH-005, CH-016, CH-032 (D-063) are fixed and tested through the web app path; live confirmation waits for Groq allowance. Step 4, the first vertical slice, is built and was tried in a real browser. **Now:** step 5, extending the slice in fake mode, starting with employee clarification. The final 50-case run stays near the end.
 
 **First vertical slice (target of step 4).** Reuses the existing parts:
 employee submits a request in a minimal React form → API receives it → database stores the original → Groq extraction → evidence checks → policy engine → decision, rule IDs and reasons saved → the employee opens the request and sees its status.
@@ -91,7 +91,7 @@ Each part below works and is tested **on its own**. No application workflow conn
 | Live check T1 to T6 | 6 synthetic requests | Groq `openai/gpt-oss-120b` | Done (2026-11-22/23, Maira's laptop) | Found two prompt problems (category left empty; "categorise as..." obeyed), fixed by D-052. After the fixes all 6 matched the expected answers |
 | **Dev run 1** | 30 verified dev cases | same, for both systems | **Done and recorded** (2026-11-23, code `dc9be8c`) | Both systems 30/30 correct decisions, 0 false allows. System B better on rule lists (93.3% vs 90.0%), field status (97.0% vs 94.7%) and field values (95.6% vs 92.1%); System A better on urgency (100% vs 96.7%). Files in `evaluation/results/` |
 | Challenge run 1 | 40 challenge cases (39 scored) | same, from tag `challenge-baseline-2026-11-26` | **Done and recorded** (2026-11-26) | B more accurate (89.7% vs 84.6%), half the over-escalation (15.4% vs 30.8%), far better rules and roles (84.6% vs 61.5%); false allows A 1 (CH-011), B 2 (CH-011, CH-027). Files and analysis in `evaluation/results/` (`challenge-run-1-*`). Both false allows fixed afterwards (D-062); a post-fix B run is still to do |
-| Post-fix B run | 40 challenge cases | same, code after D-062 | Not started | Confirms the CH-011 fix on the real model (its fix adds a prompt line). Development data |
+| Post-fix B run | 40 challenge cases | same, code after D-062 and D-063 | Not started (Groq allowance used up) | Confirms on the real model: CH-011 (unit price), CH-032 (payment party), CH-016 (supplier correction). Both prompts changed (A `3584b19d`, B `da0c499f`); development data |
 | Final run | 50 held-out test cases | same | Not started; near the end (D-057) | Labels still draft |
 
 The dev cases did not separate the two systems on decisions. That is a finding, not a failure. Limits: synthetic English requests, one model, development data only. Details: `docs/EVALUATION_CASES.md` §8 and §9, `evaluation/results/README.md`.
@@ -100,8 +100,7 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Check | Result |
 |---|---|
-| `pytest` (backend/), PostgreSQL 16 running | **681 passed**: policy 132, database 126, extraction 185, urgency 50, evaluation 138, API 34, basic and app settings 16 (2026-11-26) |
-| `pytest -m "not integration"` (no database) | 520 passed, 161 deselected |
+| `pytest` (backend/), PostgreSQL 16 running | **708 passed** (2026-11-26, after D-063) |
 | `mypy app` | no issues in 59 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
 | `check_cases` (80 main cases) | no problems; 30 verified, 50 draft |
 | `check_cases --dataset challenge` | no problems; 39 machine-validated, 1 disputed |
@@ -143,17 +142,18 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 17. When the amount is missing, the app also shows POL-007 (budget cannot be checked), unlike the experiment, where `context.json` assumes the budget is available (D-059).
 18. Processing runs inside the submit call, so a live AI call adds a few seconds to the response. A background job can come later if needed.
 19. Tried in a real browser on 2026-11-26 (Maira's laptop): submit, approval and the review screens worked. Found and fixed: unreadable requests were shown as "needs more details"; repeated rule IDs.
-20. **Open, important (Q-010), CH-032:** "Order ... from TechZone ... The invoice should come from Rehman Computers." B ignored the second company; on an amount under 50,000 it would say CONTINUE. Candidate fix: one shared field rule (both systems): a different company named for invoicing, payment or delivery makes the supplier CONFLICTING.
-21. Minor, documented (challenge run 1): amount written only in words is discarded by the evidence check (CH-005); a supplier correction is read as a conflict by both systems (CH-016); small field slips (unit, purpose read as location, long item text). All safe or without decision effect.
+20. **CH-032 (invoice or payment company): fixed on 2026-11-26 (D-063, closes Q-010); needs live confirmation.** A different company to invoice or be paid now makes the supplier CONFLICTING → `HUMAN_REVIEW` with both names, also on low amounts (tested at Rs 9,000). A different delivery recipient alone is normal.
+21. **CH-005 (amount in words): fixed (D-063), code only.** **CH-016 (supplier correction read as a conflict): shared field rule updated (D-063); needs live confirmation, because it depends on the model's reading.** Still minor and documented: small field slips (unit, purpose read as location, long item text).
 
 ## 8. Next milestone
 
-**Next, in order:** (1) team decision on Q-010 (CH-032); (2) one post-fix System B challenge run to confirm the CH-011 fix (development data; not before the Groq allowance allows); (3) **step 5, first extension: clarification** (at most 2 rounds, D-029): a request in `NEEDS_CLARIFICATION` asks the employee for the missing details, re-runs extraction and the policy engine, and after 2 rounds goes to human review. Then the review queue (`AWAITING_APPROVAL`), audit history and request states. Proposed, not decided: growing the final test set beyond 50 cases (discuss its cost first: labels to verify and Groq tokens).
+**Next, in order:** (1) **step 5, first extension: clarification** (at most 2 rounds, D-029), built in fake mode: a request in `NEEDS_CLARIFICATION` asks the employee for the missing details, re-runs extraction and the policy engine, and after 2 rounds goes to human review; (2) the post-fix System B challenge run when Groq allows (development data); (3) review queue (`AWAITING_APPROVAL`), audit history and request states. Proposed, not decided: growing the final test set beyond 50 cases (discuss its cost first: labels to verify and Groq tokens).
 
 ## 9. Change log (newest first; one line per merged task)
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-26 | Maira Qazi | D-063: invoice/payment company → supplier conflict with both names (closes Q-010), amounts in words accepted as evidence, supplier corrections and open alternatives in the shared field rules; tested through the web app path including ordinary requests; 27 tests added (708 pass). Live confirmation deferred (Groq allowance) |
 | 2026-11-26 | Maira Qazi | Challenge run 1 recorded for both systems on the same baseline (`evaluation/results/challenge-run-1-*`), with the side-by-side analysis; findings 13 and 14 marked fixed (D-062); CH-032 opened as Q-010; next steps written down for whoever continues |
 | 2026-11-26 | Maira Qazi | Findings 13 and 14 fixed in System B and the app (D-062): price mismatch and blocked supplier among alternatives now go to human review with a clear reason; both reproduced first in local tests with the model's saved answers. Pre-fix baseline tagged `challenge-baseline-2026-11-26`. System A challenge run completed. 20 tests added (681 pass) |
 | 2026-11-26 | Maira Qazi | `run --retry-failed` (D-061): re-runs only cases that never reached the model, keeps every saved line, and metrics score the latest result and name the retried cases; 5 tests added and the full command rehearsed with a fake run |

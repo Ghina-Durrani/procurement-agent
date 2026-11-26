@@ -48,11 +48,12 @@ _MAX_NOTES = 10
 _MAX_NOTE_CHARS = 300
 
 _FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL | re.IGNORECASE)
-_NUMBER = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(k|m|million|lakhs?|lacs?|crores?)?\b", re.IGNORECASE)
+_NUMBER = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(k|m|million|thousand|lakhs?|lacs?|crores?)?\b", re.IGNORECASE)
 _MULTIPLIER = {
     "k": Decimal(1_000),
     "m": Decimal(1_000_000),
     "million": Decimal(1_000_000),
+    "thousand": Decimal(1_000),
     "lakh": Decimal(100_000),
     "lakhs": Decimal(100_000),
     "lac": Decimal(100_000),
@@ -179,6 +180,10 @@ def _check(
     if mismatch:
         conflicts["estimated_total"] = mismatch
         notes.append(f"estimated_total: {mismatch}; sent for checking.")
+    payee_conflict = _check_payment_party(parsed, fields, text)
+    if payee_conflict:
+        conflicts["supplier_name"] = payee_conflict
+        notes.append(f"supplier_name: {payee_conflict}; sent for checking.")
 
     urgency, urgency_note = _check_urgency(parsed, text)
     if urgency_note:
@@ -249,6 +254,32 @@ def _check_total(fields: dict[str, ExtractedField], unit_price: Decimal | None) 
         f"stated total {_amount(total.value)}{unit} does not match "
         f"{quantity.value} × {_amount(unit_price)} = {_amount(calculated)}{unit}"
     )
+
+
+def _check_payment_party(parsed: LLMReply, fields: dict[str, ExtractedField], text: str) -> str | None:
+    """Q-010 / D-063: a different company to invoice or be paid makes the supplier CONFLICTING.
+
+    Both names must be real text from the request; the AI cannot invent a conflict. The same
+    company (ignoring case, spaces and extra words such as "Ltd") is not a conflict, and a
+    delivery recipient is never reported here.
+    """
+    party = parsed.payment_party
+    payee = " ".join((party.invoice_or_payment or "").split())
+    if not payee or not _contains(text, payee):
+        return None
+    supplier = fields["supplier_name"]
+    order = " ".join((party.order_from or "").split())
+    if not order or not _contains(text, order):
+        order = str(supplier.value) if supplier.status is PRESENT and supplier.value else ""
+    if not order or _same_company(order, payee):
+        return None
+    fields["supplier_name"] = ExtractedField(status=FieldStatus.CONFLICTING, evidence=supplier.evidence)
+    return f"the order names {order}, but the invoice or payment names {payee}"
+
+
+def _same_company(first: str, second: str) -> bool:
+    a, b = " ".join(first.split()).casefold(), " ".join(second.split()).casefold()
+    return a == b or a in b or b in a
 
 
 def _amount(value: Decimal) -> str:
@@ -370,6 +401,48 @@ def _contains(text: str, quote: str) -> bool:
     return " ".join(quote.split()).casefold() in " ".join(text.split()).casefold()
 
 
+# English number words, so an amount written out ("forty-nine thousand five hundred rupees")
+# can be checked against the value exactly like digits (D-063). Nothing is guessed: words that
+# are not number words end the number.
+_UNIT_WORDS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
+    "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+    "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
+}
+_TENS_WORDS = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+    "eighty": 80, "ninety": 90,
+}
+_SCALE_WORDS = {
+    "thousand": 1_000, "lakh": 100_000, "lakhs": 100_000, "lac": 100_000, "lacs": 100_000,
+    "million": 1_000_000, "crore": 10_000_000, "crores": 10_000_000,
+}
+
+
+def _word_numbers(quote: str) -> list[Decimal]:
+    numbers: list[Decimal] = []
+    total = current = 0
+    started = False
+    for token in re.findall(r"[a-z]+", quote.casefold()):
+        if token in _UNIT_WORDS or token in _TENS_WORDS:
+            current += _UNIT_WORDS.get(token, 0) + _TENS_WORDS.get(token, 0)
+            started = True
+        elif token == "hundred" and started:
+            current *= 100
+        elif token in _SCALE_WORDS and started:
+            total += current * _SCALE_WORDS[token]
+            current = 0
+        elif token == "and" and started:
+            continue
+        elif started:
+            numbers.append(Decimal(total + current))
+            total = current = 0
+            started = False
+    if started:
+        numbers.append(Decimal(total + current))
+    return numbers
+
+
 def _number_matches(value: object, quote: str, *, required: bool) -> bool:
     """Does the number appear in the quote (allowing 1,500 / 45k / 1.5 lakh)?
 
@@ -378,7 +451,7 @@ def _number_matches(value: object, quote: str, *, required: bool) -> bool:
     """
     if isinstance(value, bool) or not isinstance(value, (int, Decimal)):
         return False
-    candidates: list[Decimal] = []
+    candidates: list[Decimal] = _word_numbers(quote)
     for number, suffix in _NUMBER.findall(quote):
         try:
             base = Decimal(number.replace(",", ""))

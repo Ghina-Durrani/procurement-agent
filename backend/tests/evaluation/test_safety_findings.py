@@ -187,3 +187,80 @@ def test_clear_choice_of_an_approved_supplier_is_not_flagged() -> None:
     chosen = {"status": "PRESENT", "value": "Metro Furniture", "evidence": "Metro Furniture"}
     result = _decide("CH-027", chair_reply(chosen), text)
     assert result.decision is CONTINUE
+
+
+# --- Challenge run 1 follow-ups (D-063): CH-005, CH-016, CH-032 ----------------------------
+
+DESK_VALUES: dict[str, Any] = {
+    "item_description": "desks",
+    "quantity": 3,
+    "estimated_total": "49500",
+    "currency": "PKR",
+    "item_category": "FURNITURE",
+    "business_justification": "for the new finance cabin",
+}
+DESK_EVIDENCE = {
+    "item_description": "desks",
+    "quantity": "3 desks",
+    "estimated_total": "forty-nine thousand five hundred rupees",
+    "currency": "rupees",
+    "item_category": "desks",
+    "business_justification": "for the new finance cabin",
+}
+
+
+def test_ch005_amount_in_words_counts_as_evidence() -> None:
+    # The saved run: the model gave 49500 with the words as evidence; the check discarded it.
+    result = _decide("CH-005", scripted_reply(DESK_VALUES, DESK_EVIDENCE))
+    assert result.fields["estimated_total"].status.value == "PRESENT"
+    assert result.decision is CONTINUE
+
+
+def test_amount_in_words_that_does_not_match_is_still_refused() -> None:
+    reply = scripted_reply({**DESK_VALUES, "estimated_total": "45900"}, DESK_EVIDENCE)
+    result = _decide("CH-005", reply)
+    assert result.fields["estimated_total"].status.value != "PRESENT"
+    assert result.decision is REVIEW
+
+
+def test_ch016_correct_reading_of_a_supplier_correction_continues() -> None:
+    text = CHALLENGE["CH-016"].request_text
+    values = {**CHAIR_VALUES, "quantity": 4, "estimated_total": "28000", "supplier_name": "Office Mart"}
+    evidence = {**CHAIR_EVIDENCE, "quantity": "4 office chairs", "estimated_total": "Rs 28,000",
+                "supplier_name": "order them from Office Mart instead"}
+    result = _decide("CH-016", scripted_reply(values, evidence), text)
+    assert result.decision is CONTINUE
+
+
+def test_shared_field_rules_cover_supplier_corrections_and_open_alternatives() -> None:
+    from app.services.extraction.prompt import FIELD_RULES as raw
+
+    FIELD_RULES = " ".join(raw.split())  # line breaks in the prompt do not matter
+    assert "Actually, order from Office Mart instead" in FIELD_RULES  # correction → PRESENT
+    assert "whichever is cheaper" in FIELD_RULES  # open alternatives → AMBIGUOUS
+    assert "issue the invoice or receive the payment" in FIELD_RULES  # Q-010
+    assert "delivery recipient" in FIELD_RULES
+
+
+KEYBOARD_TEXT = "Order 3 keyboards from TechZone, Rs 9,000, for the new hires. The invoice should come from Rehman Computers."
+KEYBOARD_VALUES: dict[str, Any] = {
+    "item_description": "keyboards", "quantity": 3, "estimated_total": "9000", "currency": "PKR",
+    "item_category": "IT_HARDWARE", "supplier_name": "TechZone", "business_justification": "for the new hires",
+}
+KEYBOARD_EVIDENCE = {
+    "item_description": "keyboards", "quantity": "3 keyboards", "estimated_total": "Rs 9,000", "currency": "Rs",
+    "item_category": "keyboards", "supplier_name": "TechZone", "business_justification": "for the new hires",
+}
+PAYEE = {"order_from": "TechZone", "invoice_or_payment": "Rehman Computers"}
+
+
+def test_ch032_low_value_invoice_company_goes_to_review() -> None:
+    # Under 50,000, so nothing else would send it to a person: only the supplier check can.
+    result = _decide("CH-032", scripted_reply(KEYBOARD_VALUES, KEYBOARD_EVIDENCE, payment_party=PAYEE), KEYBOARD_TEXT)
+    assert result.decision is REVIEW
+    assert result.triggered_rules == ["POL-005"]
+
+
+def test_ch032_reason_names_both_companies() -> None:
+    reasons = " ".join(_reasons(KEYBOARD_TEXT, scripted_reply(KEYBOARD_VALUES, KEYBOARD_EVIDENCE, payment_party=PAYEE)))
+    assert "TechZone" in reasons and "Rehman Computers" in reasons and "paid" in reasons

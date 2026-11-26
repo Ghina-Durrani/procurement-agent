@@ -250,6 +250,19 @@ def supplier_list(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule
                 required_approver_role=config.procurement_officer_role,
             )
         ]
+    if data.supplier_conflict and "supplier_name" in data.field_conflicts:
+        # Q-010 / D-063: one company is bought from, another invoices or is paid.
+        return [
+            TriggeredRule(
+                rule_id="POL-005",
+                outcome=REVIEW,
+                reason=(
+                    f"Supplier details conflict: {data.field_conflicts['supplier_name']}. Someone must "
+                    "confirm who the company buys from and who is paid."
+                ),
+                required_approver_role=config.procurement_officer_role,
+            )
+        ]
     if data.supplier_conflict:
         # One of the named suppliers could be blocked, so "no supplier yet" would be unsafe.
         # Not BLOCK: the request itself may be fine; only the supplier choice is unclear (D-048).
