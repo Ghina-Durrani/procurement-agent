@@ -40,13 +40,17 @@ log = logging.getLogger(__name__)
 _COLUMN_LIMITS = {"unit": 30, "currency": 3, "category": 100, "supplier_name": 200}
 
 
-def status_for(result: PolicyResult) -> RequestStatus:
+def status_for(result: PolicyResult, nothing_read: bool) -> RequestStatus:
     """Where the request goes next (D-059). Only CONTINUE moves it forward without a person."""
     rule_ids = set(result.triggered_rule_ids)
     if result.outcome is PolicyOutcome.BLOCK:
         return RequestStatus.BLOCKED
     if result.outcome is PolicyOutcome.CONTINUE:
         return RequestStatus.APPROVED
+    if nothing_read:
+        # The AI call failed or its answer was unusable. Asking the employee for "missing"
+        # details would mislead: they may well have written them. A person checks instead.
+        return RequestStatus.NEEDS_VERIFICATION
     if "POL-001" in rule_ids:  # the requester must add details (clarification, later slice)
         return RequestStatus.NEEDS_CLARIFICATION
     return RequestStatus.AWAITING_APPROVAL  # a person must review (review queue, later slice)
@@ -119,7 +123,8 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
     request.proposed_priority = proposal.priority
     request.extraction_status = extraction.status
     request.missing_fields = list(extraction.missing_fields)
-    _save_decision(db, request, policy_input, result, config_id)
+    nothing_read = _nothing_read(extraction)
+    _save_decision(db, request, policy_input, result, config_id, nothing_read=nothing_read)
     _audit(
         db,
         request,
@@ -143,7 +148,7 @@ def _save_failed(db: Session, request: ProcurementRequest, reason: str = "proces
     )
     result = evaluate(policy_input, config)
     request.extraction_status = ExtractionStatus.FAILED
-    _save_decision(db, request, policy_input, result, config_id, note=reason)
+    _save_decision(db, request, policy_input, result, config_id, nothing_read=True, note=reason)
     db.commit()
 
 
@@ -153,10 +158,11 @@ def _save_decision(
     policy_input: PolicyInput,
     result: PolicyResult,
     config_id: Any,
+    nothing_read: bool,
     note: str | None = None,
 ) -> None:
     previous = request.status
-    request.status = status_for(result)
+    request.status = status_for(result, nothing_read)
     if request.status is RequestStatus.APPROVED:
         # No approval was needed, so policy cleared the requester's own estimate (POL-002).
         request.approved_amount = policy_input.estimated_total
@@ -182,6 +188,16 @@ def _save_decision(
     if note:
         details["note"] = note
     _audit(db, request, "POLICY_EVALUATED", details)
+
+
+def _nothing_read(extraction: ExtractionResult) -> bool:
+    """True when no usable reading came back: the call failed, or every field is missing
+    because the answer itself was unusable (problems recorded). An answer that was read
+    and simply found nothing has no problems, so the employee is asked instead."""
+    if extraction.status is ExtractionStatus.FAILED:
+        return True
+    all_missing = all(field.status is FieldStatus.MISSING for field in extraction.fields.values())
+    return all_missing and bool(extraction.problems)
 
 
 def _copy_fields(request: ProcurementRequest, extraction: ExtractionResult) -> None:

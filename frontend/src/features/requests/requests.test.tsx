@@ -129,6 +129,56 @@ describe('Request details page', () => {
     expect(container.querySelector('img, script, b, i')).toBeNull()
   })
 
+  it('explains a failed read without blaming the employee for missing details', async () => {
+    const request = aRequest({
+      status: 'NEEDS_VERIFICATION',
+      extraction_status: 'FAILED',
+      missing_fields: ['item_description', 'quantity', 'estimated_total'],
+      fields: [
+        { name: 'item_description', status: 'MISSING', value: null },
+        { name: 'quantity', status: 'MISSING', value: null },
+      ],
+    })
+    server.use(http.get(`${API}/${request.id}`, () => HttpResponse.json(request)))
+    renderAt(`/requests/${request.id}`)
+
+    expect(await screen.findByText('Being verified')).toBeInTheDocument()
+    expect(screen.getByText(/could not read this request reliably/)).toBeInTheDocument()
+    expect(screen.queryByText(/Missing details:/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'What the system read' })).not.toBeInTheDocument()
+  })
+
+  it('shows each rule once with all its reasons', async () => {
+    const request = aRequest()
+    request.decision!.triggered_rules = [
+      {
+        rule_id: 'POL-900',
+        outcome: 'HUMAN_REVIEW',
+        reason: 'The request could not be read reliably (FAILED).',
+        required_approver_role: null,
+      },
+      {
+        rule_id: 'POL-007',
+        outcome: 'HUMAN_REVIEW',
+        reason: 'Budget availability could not be confirmed.',
+        required_approver_role: null,
+      },
+      {
+        rule_id: 'POL-900',
+        outcome: 'HUMAN_REVIEW',
+        reason: 'Currency is missing.',
+        required_approver_role: null,
+      },
+    ]
+    server.use(http.get(`${API}/${request.id}`, () => HttpResponse.json(request)))
+    renderAt(`/requests/${request.id}`)
+
+    expect(await screen.findAllByText('POL-900')).toHaveLength(1)
+    expect(screen.getByText('POL-007')).toBeInTheDocument()
+    expect(screen.getByText('The request could not be read reliably (FAILED).')).toBeInTheDocument()
+    expect(screen.getByText('Currency is missing.')).toBeInTheDocument()
+  })
+
   it('says not found for another person’s or an unknown request', async () => {
     server.use(
       http.get(`${API}/missing`, () =>

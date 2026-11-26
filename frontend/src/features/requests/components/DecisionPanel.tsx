@@ -1,6 +1,13 @@
 import { PolicyOutcomeBadge } from '@/components/domain/PolicyOutcomeBadge'
 import type { RequestDetail } from '../api'
-import { PRIORITY_TEXT, STATUS_TEXT, fieldName, formatDate } from '../labels'
+import {
+  PRIORITY_TEXT,
+  STATUS_TEXT,
+  fieldName,
+  formatDate,
+  groupRules,
+  nothingRead,
+} from '../labels'
 
 type DecisionPanelProps = { request: RequestDetail }
 
@@ -29,9 +36,18 @@ export function DecisionPanel({ request }: DecisionPanelProps) {
         <div>
           <h3 className="font-medium">Reasons</h3>
           <ul className="list-disc pl-6">
-            {decision.triggered_rules.map((rule, index) => (
-              <li key={`${rule.rule_id}-${index}`}>
-                <span className="font-mono text-sm">{rule.rule_id}</span>: {rule.reason}
+            {groupRules(decision.triggered_rules).map((group) => (
+              <li key={group.ruleId}>
+                <span className="font-mono text-sm">{group.ruleId}</span>:{' '}
+                {group.reasons.length === 1 ? (
+                  group.reasons[0]
+                ) : (
+                  <ul className="list-[circle] pl-6">
+                    {group.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
@@ -42,7 +58,7 @@ export function DecisionPanel({ request }: DecisionPanelProps) {
           Must be reviewed by: {decision.required_approver_roles.join(', ')}
         </p>
       )}
-      {request.missing_fields.length > 0 && (
+      {request.missing_fields.length > 0 && !nothingRead(request.status) && (
         <p className="text-sm">
           Missing details: {request.missing_fields.map((name) => fieldName(name)).join(', ')}
         </p>

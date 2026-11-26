@@ -52,7 +52,7 @@ def test_submit_saves_the_original_text_for_the_current_user(
     assert saved.organization_id == employee.organization_id
     assert saved.requester_id == employee.id
     # This organization has no policy settings, so processing failed closed (task 3).
-    assert saved.status is RequestStatus.AWAITING_APPROVAL
+    assert saved.status is RequestStatus.NEEDS_VERIFICATION
 
 
 def test_submit_writes_one_received_event_without_the_text(

@@ -113,6 +113,7 @@ def test_missing_amount_asks_for_details(
     ai.script(chairs_reply(estimated_total=None))
     body = _submit(client, CHAIRS)
     assert body["outcome"] == "HUMAN_REVIEW"
+    # Something was read and one detail is missing: the employee is asked (not "verified").
     assert body["status"] == "NEEDS_CLARIFICATION"
     assert "POL-001" in _rules(body)
     assert "estimated_total" in body["missing_fields"]
@@ -169,7 +170,8 @@ def test_ai_failure_fails_closed(client: TestClient, ai: ScriptedAI, demo_employ
     ai.script(LLMRateLimited("limit"))  # also covers a provider outage or a missing key
     body = _submit(client, CHAIRS)
     assert body["outcome"] == "HUMAN_REVIEW"
-    assert body["status"] != "APPROVED"
+    # Not "needs more details": the employee may have written everything (D-059).
+    assert body["status"] == "NEEDS_VERIFICATION"
     assert "POL-900" in _rules(body)
     assert body["extraction_status"] == "FAILED"
 
@@ -183,6 +185,7 @@ def test_no_policy_settings_fails_closed_without_calling_the_ai(
     fake = ai.script(chairs_reply())
     body = _submit(client, CHAIRS)
     assert body["outcome"] == "HUMAN_REVIEW"
+    assert body["status"] == "NEEDS_VERIFICATION"
     assert "POL-900" in _rules(body)
     assert fake.calls == []
 
@@ -268,3 +271,23 @@ def test_status_is_never_approved_without_continue(
         request = session.get_one(ProcurementRequest, uuid.UUID(body["id"]))
         assert request.status is not RequestStatus.APPROVED
         assert request.approved_amount is None
+
+
+def test_unreadable_reply_is_verified_by_a_person_not_sent_back(
+    client: TestClient, ai: ScriptedAI, demo_employee: User
+) -> None:
+    ai.script("not json at all", "still not json")  # the one allowed retry also fails
+    body = _submit(client, CHAIRS)
+    assert body["extraction_status"] == "INVALID"  # the extraction module's label (D-043)
+    assert all(field["status"] == "MISSING" for field in body["fields"])
+    assert body["status"] == "NEEDS_VERIFICATION"
+    assert body["outcome"] == "HUMAN_REVIEW"
+
+
+def test_read_but_empty_request_asks_the_employee(
+    client: TestClient, ai: ScriptedAI, demo_employee: User
+) -> None:
+    ai.script(scripted_reply({}, {}))  # a clean reading that simply found no details
+    body = _submit(client, "hello, can you help me?")
+    assert body["status"] == "NEEDS_CLARIFICATION"
+    assert body["outcome"] == "HUMAN_REVIEW"

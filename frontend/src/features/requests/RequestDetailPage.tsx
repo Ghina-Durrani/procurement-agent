@@ -3,7 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DecisionPanel } from './components/DecisionPanel'
 import { FieldTable } from './components/FieldTable'
 import { useRequest } from './hooks'
-import { formatDate } from './labels'
+import { formatDate, nothingRead } from './labels'
 
 export function RequestDetailPage() {
   const { id = '' } = useParams()
@@ -37,7 +37,7 @@ export function RequestDetailPage() {
             </p>
           </section>
           <DecisionPanel request={request.data} />
-          {request.data.fields.length > 0 && (
+          {request.data.fields.length > 0 && !nothingRead(request.data.status) && (
             <section aria-labelledby="fields-heading" className="flex flex-col gap-2">
               <h2 id="fields-heading" className="text-lg font-semibold">
                 What the system read

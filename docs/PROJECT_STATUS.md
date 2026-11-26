@@ -17,7 +17,7 @@ The team built the uncertain parts first on purpose: the policy engine, the AI e
 
 No new development datasets, weaker-model experiments or major redesigns without discussing the need first.
 
-**Where we are (2026-11-24):** step 1 waits for Groq's daily allowance (section 4), so step 4 started in parallel, as agreed by Maira. **The first vertical slice is built and tested** (tasks 1 to 4, section 3.1). It has been checked against a live backend, but not yet clicked through in a real browser. Next: step 5 extensions, starting with clarification.
+**Where we are (2026-11-24):** step 1 waits for Groq's daily allowance (section 4), so step 4 started in parallel, as agreed by Maira. **The first vertical slice is built and tested** (tasks 1 to 4, section 3.1). It was tried in a real browser on Maira's laptop on 2026-11-26. Next: step 5 extensions, starting with clarification.
 
 **First vertical slice (target of step 4).** Reuses the existing parts:
 employee submits a request in a minimal React form → API receives it → database stores the original → Groq extraction → evidence checks → policy engine → decision, rule IDs and reasons saved → the employee opens the request and sees its status.
@@ -30,7 +30,7 @@ employee submits a request in a minimal React form → API receives it → datab
 |---|---|---|---|
 | 1 | Repository and environment audit | Done | 2026-11-05; re-audited 2026-11-24 |
 | 2 | Environment baseline | Done | Backend and frontend checks pass; backend reaches PostgreSQL in tests. `docker compose up` was not run in the sandbox |
-| 3 | Minimal data/API vertical slice | **Done (first slice)** | Tasks 1 to 4: React form → API → database → extraction (fake or live AI) → evidence checks → policy engine → decision and reasons saved → status page. Not yet tried in a real browser |
+| 3 | Minimal data/API vertical slice | **Done (first slice)** | Tasks 1 to 4: React form → API → database → extraction (fake or live AI) → evidence checks → policy engine → decision and reasons saved → status page. Tried in a real browser on 2026-11-26 |
 | 4 | Deterministic policy engine | Done | `backend/app/policy/`, 125 tests; not yet called by any app workflow |
 | 5 | Extraction interface and provider | Done, integrated | Used by the app since slice task 3 (D-059). Clarification loop not built |
 | 6 | Human review and audit | Not started | Tables exist (`approvals`, `audit_events`); no logic |
@@ -55,7 +55,7 @@ employee submits a request in a minimal React form → API receives it → datab
 | Evaluation data: 80 main cases (30 dev verified by Maira, 50 test draft, split locked); 40 challenge cases (39 machine-validated, 1 disputed); independent reference version of the rules used to check labels | branch | in `tests/evaluation` | D-047, D-056 |
 | Request intake API (slice task 1): `POST /api/v1/requests` (201, original text saved unchanged, status `RECEIVED`, one `REQUEST_RECEIVED` audit event in the same transaction), `GET /api/v1/requests/{id}` and `GET /api/v1/requests` (own requests only, `{items, total}`); standard error envelope for every error; development-only current user (D-058) and demo seed command | branch (`app/api/`, `app/core/errors.py`, `app/schemas/`, `app/services/intake/`) | 19 (`tests/api`, need PostgreSQL) + 4 (`tests/test_errors.py`) | Cross-company and colleague reads give 404; client cannot set organization, requester or status. Also run against a live server on 2026-11-24. No AI call yet |
 | Processing in the app (slice task 3): after saving, the System B pipeline runs (one extraction call, evidence checks, priority, company facts from the database, policy engine) and saves the extraction, the policy evaluation with its exact input, the request columns, the status and two audit events; failures save a fail-closed decision. `EXTRACTION_MODE` fake (default, no tokens) or live (D-059) | branch (`app/services/intake/processing.py`, `company_facts.py`, `llm.py`) | 11 (`tests/api/test_request_processing.py`) + 6 (`tests/test_intake_llm.py`) | Tested outcomes: CONTINUE, missing amount, blocked supplier, manager approval, AI failure, no settings (no AI call), no budget, instructions in text, other company's supplier list. The AI is always a scripted fake in tests |
-| Employee screens (slice tasks 2 and 4): `features/requests` with my requests, new request (React Hook Form + zod) and request details (decision with `PolicyOutcomeBadge`, reasons, missing details, what was read, which AI read it); React Query and react-router set up in `App.tsx`; API types generated from the real OpenAPI schema; `api-client.ts` reads the error envelope (Q-002); CORS (D-060) | branch (`frontend/src/features/requests/`, `src/types/api.generated.ts`) | 17 frontend tests (MSW; an unmocked request fails the test) | All untrusted text is rendered as plain text (tested). Checked against a live backend from the dev origin; **not yet tried in a real browser** |
+| Employee screens (slice tasks 2 and 4): `features/requests` with my requests, new request (React Hook Form + zod) and request details (decision with `PolicyOutcomeBadge`, reasons, missing details, what was read, which AI read it); React Query and react-router set up in `App.tsx`; API types generated from the real OpenAPI schema; `api-client.ts` reads the error envelope (Q-002); CORS (D-060) | branch (`frontend/src/features/requests/`, `src/types/api.generated.ts`) | 17 frontend tests (MSW; an unmocked request fails the test) | All untrusted text is rendered as plain text (tested). Checked against a live backend from the dev origin, and tried in a real browser on Maira's laptop (2026-11-26) |
 | Frontend scaffold: React 19, Vite 8, TS strict, Tailwind 4, shadcn/ui base components, `PolicyOutcomeBadge`, `apiRequest` client, lint and format rules | `main` | 3 | Checks re-run 2026-11-24 |
 
 ### 3.2 Implemented but not integrated
@@ -99,13 +99,13 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Check | Result |
 |---|---|
-| `pytest` (backend/), PostgreSQL 16 running | **654 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, API 30, basic and app settings 16 (after the first slice) |
-| `pytest -m "not integration"` (no database) | 497 passed, 157 deselected |
+| `pytest` (backend/), PostgreSQL 16 running | **656 passed**: policy 125, database 126, extraction 185, urgency 50, evaluation 122, API 32, basic and app settings 16 (2026-11-26) |
+| `pytest -m "not integration"` (no database) | 497 passed, 159 deselected |
 | `mypy app` | no issues in 59 files (mypy is used in the sandbox; not in `requirements.txt`, D-026) |
 | `check_cases` (80 main cases) | no problems; 30 verified, 50 draft |
 | `check_cases --dataset challenge` | no problems; 39 machine-validated, 1 disputed |
 | Frontend `npm run typecheck`, `lint`, `format:check` | clean |
-| Frontend `npm test` | 3 files, 17 tests passed |
+| Frontend `npm test` | 3 files, 19 tests passed |
 | Frontend `npm run build` | succeeded (456 kB, 145 kB gzip; router, React Query and forms added) |
 | Live check | backend + Vite dev server: CORS preflight and a submission from the dev origin worked (dev case EV-005 → CONTINUE, APPROVED); EV-009 → HUMAN_REVIEW, NEEDS_CLARIFICATION |
 | `npm audit` | not re-run; 7 moderate findings from 2026-11-05 not triaged (Q-009) |
@@ -141,7 +141,7 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 16. The app's fake AI (default) only knows the 30 dev case texts; any other text fails closed to `HUMAN_REVIEW` (POL-900). Use `EXTRACTION_MODE=live` to try your own text, which spends Groq tokens.
 17. When the amount is missing, the app also shows POL-007 (budget cannot be checked), unlike the experiment, where `context.json` assumes the budget is available (D-059).
 18. Processing runs inside the submit call, so a live AI call adds a few seconds to the response. A background job can come later if needed.
-19. The new screens have not been clicked through in a real browser yet.
+19. Tried in a real browser on 2026-11-26 (Maira's laptop): submit, approval and the review screens worked. Found and fixed: unreadable requests were shown as "needs more details"; repeated rule IDs.
 
 ## 8. Next milestone
 
@@ -151,6 +151,7 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-26 | Maira Qazi | First slice tried in a real browser on Maira's laptop (dev case → Approved). Two fixes from that test: an unreadable request now shows "Being verified" with a plain explanation instead of a misleading list of missing details (D-059), and each rule is shown once with its reasons grouped. 3 backend and 2 frontend tests added |
 | 2026-11-24 | Maira Qazi | First vertical slice finished: tasks 2 to 4 (employee screens, processing with extraction and the policy engine, decision and reasons on the status page), fake/live AI setting and CORS (D-059, D-060), Q-002 and Q-003 closed; 17 backend and 14 frontend tests added |
 | 2026-11-24 | Maira Qazi | Vertical slice task 1: request intake API (submit, save, retrieve), error envelope, development current user (D-058), demo seed; 23 new tests. Challenge run status corrected (rate-limited, not counted); CH-011 and CH-027 recorded as unresolved safety findings |
 | 2026-11-24 | Maira Qazi | Documentation audit (D-057): `PROJECT_STATUS.md` rewritten from the real repository state (four status groups, verified checks, experiments, agreed roadmap); stale claims corrected in `TECH_STACK_AND_DECISIONS.md`, `DECISIONS.md`, `BACKEND_GUIDE.md`, `FYP_MASTER_CONTEXT.md` (facts only, scope unchanged), `EXTRACTION_MODULE_DESIGN.md`, `EVALUATION_CASES.md` and `CLAUDE.md`. Documentation only |

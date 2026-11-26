@@ -7,7 +7,10 @@ export const STATUS_TEXT: Record<RequestStatus, { label: string; next: string }>
     label: 'Needs more details',
     next: 'Some required details are missing. Answering follow-up questions here comes in a later step.',
   },
-  NEEDS_VERIFICATION: { label: 'Being verified', next: 'A person is checking the details.' },
+  NEEDS_VERIFICATION: {
+    label: 'Being verified',
+    next: 'The system could not read this request reliably, so no details were taken from it. A person will check it.',
+  },
   AWAITING_APPROVAL: {
     label: 'Waiting for review',
     next: 'A person must review this request before it can go ahead.',
@@ -58,4 +61,25 @@ export function formatDate(iso: string): string {
   return Number.isNaN(date.getTime())
     ? iso
     : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+export type RuleGroup = { ruleId: string; reasons: string[] }
+
+/** One entry per rule, in the order the engine gave them, with all its reasons together. */
+export function groupRules(rules: { rule_id: string; reason: string }[]): RuleGroup[] {
+  const groups: RuleGroup[] = []
+  for (const rule of rules) {
+    const group = groups.find((existing) => existing.ruleId === rule.rule_id)
+    if (group) {
+      if (!group.reasons.includes(rule.reason)) group.reasons.push(rule.reason)
+    } else {
+      groups.push({ ruleId: rule.rule_id, reasons: [rule.reason] })
+    }
+  }
+  return groups
+}
+
+/** True when nothing usable was read, so per-field details would only mislead. */
+export function nothingRead(status: RequestStatus): boolean {
+  return status === 'NEEDS_VERIFICATION'
 }
