@@ -59,6 +59,18 @@ def supplier_status(
     return SupplierStatus.NOT_APPROVED
 
 
+def blocked_supplier_names(db: Session, organization_id: uuid.UUID) -> list[str]:
+    """This organization's blocked suppliers, to spot them among open alternatives (D-062)."""
+    return list(
+        db.scalars(
+            select(Supplier.name).where(
+                Supplier.organization_id == organization_id,
+                Supplier.status == SupplierStatus.BLOCKED,
+            )
+        )
+    )
+
+
 def budget_status(
     db: Session,
     organization_id: uuid.UUID,

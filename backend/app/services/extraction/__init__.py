@@ -8,7 +8,7 @@ Typical use (the database and API layers will call this later):
     policy_input = to_policy_input(result, request_id=..., organization_id=..., submitted_at=...)
     decision = evaluate(policy_input, config)
 """
-from .convert import known_categories, to_policy_input
+from .convert import known_categories, names_in_text, to_policy_input
 from .extractor import extract_request
 from .factory import build_llm_client
 from .fake_llm import FakeLLMClient, scripted_reply
@@ -50,6 +50,7 @@ __all__ = [
     "build_llm_client",
     "extract_request",
     "known_categories",
+    "names_in_text",
     "scripted_reply",
     "to_policy_input",
     "UrgencyLevel",

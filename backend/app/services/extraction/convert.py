@@ -5,6 +5,7 @@ company data (is the supplier approved? is there budget? how many quotations?) a
 by the caller, never taken from the model. That is the line between "the LLM reads" and
 "the code decides".
 """
+import re
 from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
@@ -35,6 +36,24 @@ def known_categories(config: PolicyConfig) -> list[str]:
     ]
 
 
+def names_in_text(text: str, names: Sequence[str]) -> list[str]:
+    """Which of these trusted names appear in the request, as whole words.
+
+    Case and extra spaces are ignored, nothing else: "QuickDeal Imports" matches
+    "quickdeal  imports" but not "QuickDealer" or just "QuickDeal".
+    """
+    flat = " ".join(text.split())
+    found = []
+    for name in names:
+        words = name.split()
+        if not words:
+            continue
+        pattern = r"(?<!\w)" + r"\s+".join(re.escape(word) for word in words) + r"(?!\w)"
+        if re.search(pattern, flat, flags=re.IGNORECASE):
+            found.append(name)
+    return found
+
+
 def to_policy_input(
     result: ExtractionResult,
     *,
@@ -47,7 +66,12 @@ def to_policy_input(
     budget_status: BudgetStatus | None = None,
     proposed_priority: Priority | None = None,
     recent_requests: Sequence[RecentRequest] = (),
+    blocked_suppliers_in_text: Sequence[str] = (),
 ) -> PolicyInput:
+    # A blocked name in the text matters only while no single supplier was read: an explicit
+    # blocked choice is BLOCKED through supplier_status, and a clear allowed choice
+    # ("Metro Furniture, not QuickDeal Imports") is not second-guessed (D-062).
+    supplier_open = result.field_status("supplier_name") is not FieldStatus.PRESENT
     return PolicyInput(
         request_id=request_id,
         organization_id=organization_id,
@@ -62,6 +86,8 @@ def to_policy_input(
         supplier_name=result.supplier_name,
         supplier_status=supplier_status,
         supplier_conflict=result.field_status("supplier_name") is FieldStatus.CONFLICTING,
+        blocked_suppliers_named=list(blocked_suppliers_in_text) if supplier_open else [],
+        field_conflicts=dict(result.field_conflicts),
         instructions_in_request=bool(result.instructions_found),
         budget_status=budget_status,
         proposed_priority=proposed_priority,

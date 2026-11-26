@@ -202,6 +202,8 @@ class LLMReply(BaseModel):
     delivery_deadline: _TextField = Field(default_factory=_TextField)
     delivery_location: _TextField = Field(default_factory=_TextField)
     business_justification: _TextField = Field(default_factory=_TextField)
+    # Only used by code to check the stated total (finding 13). Not a stored request field.
+    unit_price: _MoneyField = Field(default_factory=_MoneyField)
     urgency: _LLMUrgency = Field(default_factory=_LLMUrgency)
     instructions_to_system: _LLMInstructions = Field(default_factory=_LLMInstructions)
     notes: list[str] = Field(default_factory=list, max_length=20)
@@ -250,6 +252,9 @@ class ExtractionResult(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
     # Notes for a human: unclear or conflicting information, and values we threw away.
     ambiguities: list[str] = Field(default_factory=list)
+    # Why code marked a field CONFLICTING, for the decision reasons (for example a stated
+    # total that does not match quantity × unit price). Field name -> plain explanation.
+    field_conflicts: dict[str, str] = Field(default_factory=dict)
     # Why the status is INVALID or FAILED (never contains the request text).
     problems: list[str] = Field(default_factory=list)
     # Parts of the request that read like orders to the system, found by code (D-051).

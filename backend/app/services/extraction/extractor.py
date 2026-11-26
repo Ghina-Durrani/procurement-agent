@@ -171,6 +171,15 @@ def _check(
     if category_note:
         notes.append(category_note)
 
+    unit_price, price_note = _check_unit_price(parsed, text)
+    if price_note:
+        notes.append(price_note)
+    conflicts: dict[str, str] = {}
+    mismatch = _check_total(fields, unit_price)
+    if mismatch:
+        conflicts["estimated_total"] = mismatch
+        notes.append(f"estimated_total: {mismatch}; sent for checking.")
+
     urgency, urgency_note = _check_urgency(parsed, text)
     if urgency_note:
         notes.append(urgency_note)
@@ -193,8 +202,57 @@ def _check(
         urgency=urgency,
         missing_fields=missing,
         ambiguities=notes[: _MAX_NOTES * 2],
+        field_conflicts=conflicts,
         instructions_found=instructions,
     )
+
+
+# Amounts whose quote must contain the same number (a quote without digits cannot be checked).
+_MONEY_FIELDS = ("estimated_total", "unit_price")
+
+# How far a stated total may be from quantity × unit price before it counts as a mismatch:
+# 1 % of the calculated total, and never less than 1 unit of money (rounding such as
+# 3 × 3,333.33 = 9,999.99 against "10,000" passes).
+TOTAL_TOLERANCE = Decimal("0.01")
+
+
+def _check_unit_price(parsed: LLMReply, text: str) -> tuple[Decimal | None, str | None]:
+    """The unit price only counts with a real quote containing the same number."""
+    reported = parsed.unit_price
+    if reported.status is not PRESENT or reported.value is None:
+        return None, None
+    problem = _verify("unit_price", reported.value, reported.evidence, text)
+    if problem is not None:
+        return None, problem[0]
+    return reported.value, None
+
+
+def _check_total(fields: dict[str, ExtractedField], unit_price: Decimal | None) -> str | None:
+    """Finding 13: code, not the model, multiplies quantity by unit price.
+
+    When quantity, unit price and stated total are all backed by the request and the total
+    clearly disagrees, the total becomes CONFLICTING (POL-001 sends it to a person) and the
+    explanation is returned. Any of the three missing means no check: nothing is guessed.
+    """
+    quantity, total = fields["quantity"], fields["estimated_total"]
+    if unit_price is None or quantity.status is not PRESENT or total.status is not PRESENT:
+        return None
+    if not isinstance(quantity.value, int) or not isinstance(total.value, Decimal):
+        return None
+    calculated = Decimal(quantity.value) * unit_price
+    if abs(calculated - total.value) <= max(Decimal(1), calculated * TOTAL_TOLERANCE):
+        return None
+    fields["estimated_total"] = ExtractedField(status=FieldStatus.CONFLICTING, evidence=total.evidence)
+    currency = fields["currency"].value if fields["currency"].status is PRESENT else None
+    unit = f" {currency}" if currency else ""
+    return (
+        f"stated total {_amount(total.value)}{unit} does not match "
+        f"{quantity.value} × {_amount(unit_price)} = {_amount(calculated)}{unit}"
+    )
+
+
+def _amount(value: Decimal) -> str:
+    return f"{value:,.0f}" if value == value.to_integral_value() else f"{value:,.2f}"
 
 
 def _back_category_with_item(fields: dict[str, ExtractedField]) -> str | None:
@@ -300,7 +358,7 @@ def _verify(field: str, value: object, quote: str | None, text: str) -> tuple[st
         return f"{field}: no supporting words from the request were given; value discarded.", False
     if not _contains(text, quote):
         return f"{field}: the quoted words do not appear in the request; value discarded.", False
-    if field == "estimated_total" and not _number_matches(value, quote, required=True):
+    if field in _MONEY_FIELDS and not _number_matches(value, quote, required=True):
         return f"{field}: the amount does not match the quoted words; value discarded.", True
     if field == "quantity" and not _number_matches(value, quote, required=False):
         return f"{field}: the number does not match the quoted words; value discarded.", True

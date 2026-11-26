@@ -73,13 +73,18 @@ SECURITY RULES (most important):
 """
     + FIELD_RULES.replace("{", "{{").replace("}", "}}")
     + """\
+UNIT PRICE (only used to check the total):
+- "unit_price": the price of ONE unit, exactly as written ("Rs 4,000 each", "Rs 500 per box").
+  PRESENT only when the request has one item with one stated price per unit; quote those words.
+  Otherwise MISSING. Never calculate it from the total.
+
 CATEGORY CODES:
 {categories}
 
 Reply with ONE JSON object and nothing else. Each field is an object
 {{"status": "...", "value": ..., "evidence": ...}}. The keys are exactly:
 item_description, quantity, unit, estimated_total, currency, item_category, supplier_name,
-delivery_deadline, delivery_location, business_justification,
+delivery_deadline, delivery_location, business_justification, unit_price,
 "urgency": {{"level": "...", "evidence": string|null}},
 "instructions_to_system": {{"found": true|false, "evidence": string|null}}, "notes": [string]
 """

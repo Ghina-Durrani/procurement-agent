@@ -3,6 +3,7 @@
 Slice task 3. The AI is always the scripted fake here: no tokens, no network. The demo company
 (settings, suppliers, budget) comes from the same seed command the developers run.
 """
+import json
 import uuid
 from decimal import Decimal
 
@@ -46,6 +47,14 @@ def chairs_reply(**changes: object) -> str:
     }
     values.update(changes)
     return scripted_reply(values, evidence)
+
+
+def _chair_parts() -> tuple[dict[str, object], dict[str, str]]:
+    """chairs_reply's values and evidence, for tests that add extra reply keys."""
+    reply = json.loads(chairs_reply())
+    values = {name: field["value"] for name, field in reply.items() if isinstance(field, dict) and "value" in field}
+    evidence = {name: field["evidence"] for name, field in reply.items() if isinstance(field, dict) and "evidence" in field}
+    return values, evidence
 
 
 @pytest.fixture()
@@ -291,3 +300,31 @@ def test_read_but_empty_request_asks_the_employee(
     body = _submit(client, "hello, can you help me?")
     assert body["status"] == "NEEDS_CLARIFICATION"
     assert body["outcome"] == "HUMAN_REVIEW"
+
+
+def test_app_reviews_an_open_choice_with_a_blocked_supplier(
+    client: TestClient, ai: ScriptedAI, demo_employee: User
+) -> None:
+    # Finding 14 (D-062) in the app: the blocked list comes from this company's suppliers table.
+    text = "Need 3 office chairs from Metro Furniture or QuickDeal Imports, Rs 30,000 total, for the new meeting room."
+    reply = json.loads(chairs_reply())
+    reply["supplier_name"] = {"status": "AMBIGUOUS", "value": None, "evidence": "Metro Furniture or QuickDeal Imports"}
+    ai.script(json.dumps(reply))
+    body = _submit(client, text)
+    assert body["outcome"] == "HUMAN_REVIEW"
+    assert _rules(body) == ["POL-005"]
+    assert "QuickDeal Imports" in body["decision"]["triggered_rules"][0]["reason"]
+
+
+def test_app_reviews_a_total_that_does_not_match_the_unit_price(
+    client: TestClient, ai: ScriptedAI, demo_employee: User
+) -> None:
+    # Finding 13 (D-062) in the app.
+    text = "Need 3 office chairs at Rs 12,000 each from Metro Furniture, Rs 30,000 total, for the new meeting room."
+    price = {"status": "PRESENT", "value": "12000", "evidence": "Rs 12,000 each"}
+    ai.script(scripted_reply(*_chair_parts(), unit_price=price))
+    body = _submit(client, text)
+    assert body["outcome"] == "HUMAN_REVIEW"
+    assert body["status"] == "NEEDS_CLARIFICATION"
+    reason = next(r["reason"] for r in body["decision"]["triggered_rules"] if r["rule_id"] == "POL-001")
+    assert "30,000 PKR does not match 3 × 12,000 = 36,000 PKR" in reason

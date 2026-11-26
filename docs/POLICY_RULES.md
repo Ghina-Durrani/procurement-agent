@@ -77,6 +77,7 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 - **Needs:** `missing_fields`, and for the reason for buying also `estimated_total` and `proposed_priority`
 - **Rule:** if a required detail is still missing after the requester was asked up to 2 times → `HUMAN_REVIEW` by a Procurement Officer.
 - **Always required:** item, quantity, amount, currency.
+- **Conflicting amount (D-062):** when the request states a quantity, a price per unit and a total that clearly disagree (more than 1 %, at least 1 unit of money), code marks the total as conflicting, so it counts as not yet known. The reason names the mismatch: "Required detail is conflicting: estimated_total (stated total 35,000 PKR does not match 10 × 4,000 = 40,000 PKR)." Code does the multiplication; the AI only quotes the unit price.
 - **Reason for buying (D-053, D-054):** required when the amount is above 50,000 PKR or the requester claims an emergency, whatever the category. Otherwise optional. A missing amount is asked for first; whether a reason is needed is decided once the amount is known. Category approvals stay separate (POL-006: software needs IT, vehicles need Senior Management). The limit is a setting, not code; a company can also list categories that need a reason, but the demo lists none. A reason given in the request ("for the computer lab") is always read and kept, even when optional.
 - **Reason shown:** "Required detail still missing: quantity."
 - **Based on:** a request cannot be approved without these basics.
@@ -105,8 +106,8 @@ Amounts are always exact decimals (`Decimal`), never rounded numbers.
 
 ### POL-005: Do we trust this supplier?
 - **When:** request arrives, and again before the purchase order
-- **Needs:** `supplier_name`, `supplier_status`, `supplier_conflict`
-- **Rule:** blocked supplier → `BLOCK`. The request names conflicting suppliers ("buy from TechZone ... place the order with Falcon Wholesale") → `HUMAN_REVIEW` by a Procurement Officer, who confirms which one is meant; not `BLOCK`, because the purchase itself may be fine (D-048). Supplier not on the approved list (or not found) → `HUMAN_REVIEW` by a Procurement Officer. Approved → fine. No supplier named yet when the request arrives → fine. No supplier chosen before the purchase order → `HUMAN_REVIEW` (POL-900).
+- **Needs:** `supplier_name`, `supplier_status`, `supplier_conflict`, `blocked_suppliers_named`
+- **Rule:** blocked supplier → `BLOCK`. The request names conflicting suppliers ("buy from TechZone ... place the order with Falcon Wholesale") → `HUMAN_REVIEW` by a Procurement Officer, who confirms which one is meant; not `BLOCK`, because the purchase itself may be fine (D-048). Supplier not on the approved list (or not found) → `HUMAN_REVIEW` by a Procurement Officer. Approved → fine. No single supplier chosen, but the request names a blocked supplier among the options ("Metro Furniture or QuickDeal Imports, whichever is cheaper") → `HUMAN_REVIEW` by a Procurement Officer, naming the blocked supplier; found by code from the supplier list, never by the AI (D-062). No supplier named yet when the request arrives → fine. No supplier chosen before the purchase order → `HUMAN_REVIEW` (POL-900).
 - **Reason shown:** "Supplier 'X' is on the blocked list."
 - **Based on:** approved and blocked supplier lists.
 

@@ -33,6 +33,12 @@ class SupplierDirectory(_Strict):
     approved: list[str]
     blocked: list[str]
 
+    def blocked_in(self, text: str) -> list[str]:
+        """Blocked suppliers named in this request text (finding 14, D-062)."""
+        from app.services.extraction import names_in_text
+
+        return names_in_text(text, self.blocked)
+
 
 class EvaluationContext(_Strict):
     about: str = ""

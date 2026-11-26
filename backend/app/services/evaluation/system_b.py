@@ -43,6 +43,7 @@ def run_system_b(case: EvaluationCase, llm: LLMClient, context: EvaluationContex
         budget_status=facts["budget_status"],
         proposed_priority=proposal.priority,
         recent_requests=facts["recent_requests"],
+        blocked_suppliers_in_text=context.suppliers.blocked_in(case.request_text),
     )
     decision = evaluate(policy_input, config)
     fields = {

@@ -112,11 +112,18 @@ def completeness(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]
     missing = [field for field in _required_now(data, config) if field in data.missing_fields]
     if not missing:
         return []
+    unclear = [field for field in missing if field not in data.field_conflicts]
+    conflicts = [f"{field} ({data.field_conflicts[field]})" for field in missing if field in data.field_conflicts]
+    parts = []
+    if unclear:
+        parts.append(f"Required detail still missing: {', '.join(unclear)}.")
+    if conflicts:
+        parts.append(f"Required detail is conflicting: {'; '.join(conflicts)}.")
     return [
         TriggeredRule(
             rule_id="POL-001",
             outcome=REVIEW,
-            reason=f"Required detail still missing: {', '.join(missing)}.",
+            reason=" ".join(parts),
             required_approver_role=config.procurement_officer_role,
         )
     ]
@@ -227,6 +234,20 @@ def supplier_list(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule
                 rule_id="POL-005",
                 outcome=BLOCK,
                 reason=f"Supplier '{name}' is on the blocked list.",
+            )
+        ]
+    if data.blocked_suppliers_named:
+        # The choice is left open and one candidate is blocked (finding 14, D-062). Not BLOCK:
+        # the employee did not choose it, and an allowed supplier may still be used.
+        return [
+            TriggeredRule(
+                rule_id="POL-005",
+                outcome=REVIEW,
+                reason=(
+                    "No single supplier was chosen, and the request names a blocked supplier "
+                    f"({', '.join(data.blocked_suppliers_named)}); confirm a supplier that is not blocked."
+                ),
+                required_approver_role=config.procurement_officer_role,
             )
         ]
     if data.supplier_conflict:

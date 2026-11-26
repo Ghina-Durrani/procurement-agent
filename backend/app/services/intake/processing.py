@@ -27,6 +27,7 @@ from app.services.extraction import (
     FieldStatus,
     extract_request,
     known_categories,
+    names_in_text,
     to_policy_input,
 )
 from app.services.urgency import propose_priority
@@ -98,6 +99,9 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
         ),
         proposed_priority=proposal.priority,
         recent_requests=company_facts.recent_requests(db, request, config.split_window_days),
+        blocked_suppliers_in_text=names_in_text(
+            request.raw_message, company_facts.blocked_supplier_names(db, request.organization_id)
+        ),
     )
     result = evaluate(policy_input, config)
 

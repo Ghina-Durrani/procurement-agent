@@ -100,6 +100,12 @@ class PolicyInput(_Frozen):
     # True when the request names suppliers that contradict each other, so no single supplier
     # could be read from it (D-048). POL-005 then asks a person to confirm which one is meant.
     supplier_conflict: bool = False
+    # Blocked suppliers whose names appear in the request while no single supplier was chosen
+    # (finding 14, D-062). Found by code from the trusted supplier list, never by the model.
+    blocked_suppliers_named: list[str] = Field(default_factory=list)
+    # Why a required detail is CONFLICTING, found by code (finding 13, D-062): for example a
+    # stated total that does not match quantity × unit price. Field name -> explanation.
+    field_conflicts: dict[str, str] = Field(default_factory=dict)
     # True when the request contains text that tries to give orders to the system, found by
     # code on the request text (D-051). POL-010 then asks a person to check the request.
     instructions_in_request: bool = False
