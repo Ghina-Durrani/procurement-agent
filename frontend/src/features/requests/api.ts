@@ -7,6 +7,7 @@ export type RequestList = components['schemas']['RequestList']
 export type RequestStatus = components['schemas']['RequestStatus']
 export type Priority = components['schemas']['Priority']
 export type ClarificationRound = components['schemas']['ClarificationRead']
+export type ApprovalItem = components['schemas']['ApprovalRead']
 
 const PATH = '/api/v1/requests'
 

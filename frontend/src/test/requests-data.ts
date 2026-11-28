@@ -48,6 +48,7 @@ export function aRequest(changes: Partial<RequestDetail> = {}): RequestDetail {
       },
     ],
     max_clarification_rounds: 2,
+    approvals: [],
     ...changes,
   }
 }

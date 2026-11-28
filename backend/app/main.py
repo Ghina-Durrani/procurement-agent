@@ -2,7 +2,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.dev import router as dev_router
 from app.api.v1.requests import router as requests_router
+from app.api.v1.reviews import router as reviews_router
 from app.config import get_settings
 from app.core.errors import install_error_handlers
 
@@ -30,10 +32,13 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        # X-Demo-User: development user switcher (D-065); refused outside development.
+        allow_headers=["Content-Type", "X-Demo-User"],
     )
     install_error_handlers(app)
     app.include_router(requests_router, prefix="/api/v1")
+    app.include_router(reviews_router, prefix="/api/v1")
+    app.include_router(dev_router, prefix="/api/v1")
     return app
 
 

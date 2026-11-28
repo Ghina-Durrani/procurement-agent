@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import NotFound
 from app.models import AuditEvent, Extraction, PolicyEvaluation, ProcurementRequest, User
 from app.models.enums import ActorType, RequestStatus
+from app.policy import Checkpoint
 
 from .llm import IntakeLLM
 from .processing import process_request
@@ -93,7 +94,11 @@ def latest_extraction(db: Session, request: ProcurementRequest) -> Extraction | 
 def latest_evaluations(
     db: Session, user: User, request_ids: list[uuid.UUID]
 ) -> dict[uuid.UUID, PolicyEvaluation]:
-    """The newest policy evaluation of each request, in one query."""
+    """The newest INTAKE evaluation of each request, in one query.
+
+    Only INTAKE: an APPROVAL-checkpoint check (POL-009, D-065) is about a reviewer's action,
+    not the request's decision, and must not replace it on the employee's screen.
+    """
     if not request_ids:
         return {}
     rows = db.scalars(
@@ -101,6 +106,7 @@ def latest_evaluations(
         .where(
             PolicyEvaluation.organization_id == user.organization_id,
             PolicyEvaluation.request_id.in_(request_ids),
+            PolicyEvaluation.checkpoint == Checkpoint.INTAKE,
         )
         .order_by(PolicyEvaluation.created_at, PolicyEvaluation.id)
     ).all()

@@ -18,7 +18,7 @@ export const STATUS_TEXT: Record<RequestStatus, { label: string; next: string }>
   BLOCKED: { label: 'Blocked', next: 'This request breaks a company rule and cannot go ahead.' },
   APPROVED: {
     label: 'Approved',
-    next: 'No approval was needed under company rules. It can go ahead to sourcing.',
+    next: 'Cleared under company rules. It can go ahead to sourcing.',
   },
   REJECTED: { label: 'Rejected', next: 'A reviewer rejected this request.' },
   WITHDRAWN: { label: 'Withdrawn', next: 'The request was withdrawn.' },

@@ -5,12 +5,19 @@ frontend shows it as plain text, never as HTML.
 """
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from app.config import get_settings
-from app.models import Clarification, Extraction, PolicyEvaluation, ProcurementRequest
+from app.models import (
+    Approval,
+    Clarification,
+    Extraction,
+    PolicyEvaluation,
+    ProcurementRequest,
+    User,
+)
 from app.models.enums import ExtractionStatus, PolicyOutcome, Priority, RequestStatus
 from app.services.extraction.schemas import EXTRACTED_FIELDS
 from app.services.intake.clarification import MAX_ANSWER_CHARS, MAX_ROUNDS
@@ -81,6 +88,30 @@ class ClarificationRead(BaseModel):
             answer=row.answer_text,
             asked_at=row.asked_at,
             answered_at=row.answered_at,
+        )
+
+
+class ApprovalRead(BaseModel):
+    """One review of a request, as the requester sees it."""
+
+    required_role: str
+    decision: Literal["PENDING", "APPROVED", "REJECTED"]
+    decided_by: str | None
+    decided_at: datetime | None
+    comment: str | None
+
+    @field_serializer("decided_at")
+    def _decided_at(self, value: datetime | None) -> str | None:
+        return _utc(value) if value is not None else None
+
+    @classmethod
+    def from_row(cls, approval: Approval, decider: User | None) -> "ApprovalRead":
+        return cls(
+            required_role=approval.required_role,
+            decision=approval.decision.value,
+            decided_by=decider.full_name if decider is not None else None,
+            decided_at=approval.decided_at,
+            comment=approval.comment,
         )
 
 
@@ -160,6 +191,8 @@ class RequestDetail(RequestSummary):
     # NEEDS_CLARIFICATION and its answer is null.
     clarifications: list[ClarificationRead] = []
     max_clarification_rounds: int = MAX_ROUNDS
+    # Human reviews of this request (D-065), oldest first.
+    approvals: list[ApprovalRead] = []
 
     @classmethod
     def from_records(
@@ -168,6 +201,7 @@ class RequestDetail(RequestSummary):
         extraction: Extraction | None,
         evaluation: PolicyEvaluation | None,
         clarifications: list[Clarification] | None = None,
+        approvals: list[ApprovalRead] | None = None,
     ) -> "RequestDetail":
         summary = RequestSummary.from_rows(request, evaluation)
         return cls(
@@ -178,6 +212,7 @@ class RequestDetail(RequestSummary):
             read_by=extraction.model_name if extraction is not None else None,
             decision=DecisionRead.from_row(evaluation) if evaluation is not None else None,
             clarifications=[ClarificationRead.from_row(row) for row in clarifications or []],
+            approvals=approvals or [],
         )
 
 

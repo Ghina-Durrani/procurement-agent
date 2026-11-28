@@ -33,6 +33,9 @@ from app.services.extraction import (
 )
 from app.services.urgency import propose_priority
 
+from app.services.review import service as review
+from app.services.review.service import FALLBACK_REVIEWER_ROLE
+
 from . import clarification, company_facts
 from .llm import IntakeLLM
 
@@ -137,7 +140,14 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
     nothing_read = _nothing_read(extraction)
     can_ask = request.clarification_round < clarification.MAX_ROUNDS
     _save_decision(
-        db, request, policy_input, result, config_id, nothing_read=nothing_read, can_ask=can_ask
+        db,
+        request,
+        policy_input,
+        result,
+        config_id,
+        nothing_read=nothing_read,
+        can_ask=can_ask,
+        procurement_role=config.procurement_officer_role,
     )
     if request.status is RequestStatus.NEEDS_CLARIFICATION:
         clarification.ask(
@@ -169,7 +179,16 @@ def _save_failed(db: Session, request: ProcurementRequest, reason: str = "proces
     )
     result = evaluate(policy_input, config)
     request.extraction_status = ExtractionStatus.FAILED
-    _save_decision(db, request, policy_input, result, config_id, nothing_read=True, note=reason)
+    _save_decision(
+        db,
+        request,
+        policy_input,
+        result,
+        config_id,
+        nothing_read=True,
+        note=reason,
+        procurement_role=config.procurement_officer_role if config else FALLBACK_REVIEWER_ROLE,
+    )
     db.commit()
 
 
@@ -182,14 +201,14 @@ def _save_decision(
     nothing_read: bool,
     note: str | None = None,
     can_ask: bool = True,
+    procurement_role: str = FALLBACK_REVIEWER_ROLE,
 ) -> None:
     previous = request.status
     request.status = status_for(result, nothing_read, can_ask)
     if request.status is RequestStatus.APPROVED:
         # No approval was needed, so policy cleared the requester's own estimate (POL-002).
         request.approved_amount = policy_input.estimated_total
-    db.add(
-        PolicyEvaluation(
+    evaluation = PolicyEvaluation(
             organization_id=request.organization_id,
             request_id=request.id,
             checkpoint=Checkpoint.INTAKE,
@@ -204,7 +223,17 @@ def _save_decision(
             # "latest decision" shown to the employee could be the older one.
             created_at=func.clock_timestamp(),
         )
-    )
+    db.add(evaluation)
+    if request.status in (RequestStatus.AWAITING_APPROVAL, RequestStatus.NEEDS_VERIFICATION):
+        db.flush()  # the approvals point at this evaluation (D-065)
+        review.open_approvals(
+            db,
+            request,
+            evaluation.id,
+            review.reviewer_roles(
+                request.status, list(result.required_approver_roles), procurement_role
+            ),
+        )
     details: dict[str, Any] = {
         "outcome": result.outcome.value,
         "rules": sorted(set(result.triggered_rule_ids)),

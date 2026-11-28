@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ApprovalsPanel } from './components/ApprovalsPanel'
 import { ClarificationPanel } from './components/ClarificationPanel'
 import { DecisionPanel } from './components/DecisionPanel'
 import { FieldTable } from './components/FieldTable'
@@ -39,6 +40,9 @@ export function RequestDetailPage() {
           </section>
           <DecisionPanel request={request.data} />
           {request.data.clarifications.length > 0 && <ClarificationPanel request={request.data} />}
+          {request.data.approvals.length > 0 && (
+            <ApprovalsPanel approvals={request.data.approvals} />
+          )}
           {request.data.fields.length > 0 && !nothingRead(request.data.status) && (
             <section aria-labelledby="fields-heading" className="flex flex-col gap-2">
               <h2 id="fields-heading" className="text-lg font-semibold">

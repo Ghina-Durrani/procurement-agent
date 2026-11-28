@@ -112,3 +112,25 @@ describe('Follow-up questions', () => {
     expect(screen.queryByRole('button', { name: 'Send answer' })).not.toBeInTheDocument()
   })
 })
+
+describe('Reviews on the request page', () => {
+  it('shows who decided and their comment', async () => {
+    const request = aRequest({
+      status: 'REJECTED',
+      clarifications: [],
+      approvals: [
+        {
+          required_role: 'MANAGER',
+          decision: 'REJECTED',
+          decided_by: 'Demo Manager',
+          decided_at: '2026-11-28T10:00:00Z',
+          comment: 'Use the existing chairs.',
+        },
+      ],
+    })
+    server.use(http.get(`${API}/${request.id}`, () => HttpResponse.json(request)))
+    renderAt(`/requests/${request.id}`)
+    expect(await screen.findByText(/Rejected by Demo Manager/)).toBeInTheDocument()
+    expect(screen.getByText('Use the existing chairs.')).toBeInTheDocument()
+  })
+})

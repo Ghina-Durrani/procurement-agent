@@ -30,6 +30,12 @@ class NotFound(AppError):
     code = "NOT_FOUND"
 
 
+class Forbidden(AppError):
+    # The user is known but may not do this (wrong role, or a policy rule such as POL-009).
+    status_code = 403
+    code = "FORBIDDEN"
+
+
 class Conflict(AppError):
     # The record exists but is not in a state that allows this action (for example, a
     # clarification answer for a request that is not waiting for one).

@@ -6,7 +6,8 @@ It creates, once, and reuses after:
 - the active policy settings: the demo values the experiment uses (evaluation/cases/context.json,
   POLICY_RULES.md section 6), with this organization's id;
 - the demo supplier list (approved and blocked) from the same file;
-- one budget for the current year.
+- one budget for the current year;
+- demo reviewers, one per role the demo settings use (D-065), for the dev user switcher.
 Synthetic data only. Refuses to run outside development.
 """
 from datetime import date
@@ -25,6 +26,14 @@ DEMO_ROLE = "Requester"
 DEMO_BUDGET = "Demo annual budget"
 DEMO_BUDGET_TOTAL = Decimal("5000000")
 
+# (email, name, role). Roles match the demo settings (approval tiers, procurement, finance).
+DEMO_REVIEWERS = (
+    ("demo.manager@example.test", "Demo Manager", "MANAGER"),
+    ("demo.senior.manager@example.test", "Demo Senior Manager", "SENIOR_MANAGER"),
+    ("demo.procurement@example.test", "Demo Procurement Officer", "PROCUREMENT_OFFICER"),
+    ("demo.finance@example.test", "Demo Finance Approver", "FINANCE_APPROVER"),
+)
+
 
 def seed(db: Session, email: str, today: date | None = None) -> User:
     email = email.strip().lower()
@@ -41,6 +50,7 @@ def seed(db: Session, email: str, today: date | None = None) -> User:
     elif user.organization_id != org.id:
         raise SystemExit(f"{email} already belongs to another organization; choose another email.")
     _seed_company_data(db, org, user, today or date.today())
+    _seed_reviewers(db, org)
     db.commit()
     return user
 
@@ -86,6 +96,15 @@ def _seed_company_data(db: Session, org: Organization, creator: User, today: dat
                 currency="PKR",
             )
         )
+
+
+def _seed_reviewers(db: Session, org: Organization) -> None:
+    for email, name, role in DEMO_REVIEWERS:
+        existing = db.scalars(select(User).where(User.email == email)).one_or_none()
+        if existing is None:
+            db.add(User(organization_id=org.id, email=email, full_name=name, role=role))
+        elif existing.organization_id != org.id:
+            raise SystemExit(f"{email} already belongs to another organization.")
 
 
 def main() -> int:

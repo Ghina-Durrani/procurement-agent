@@ -76,10 +76,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review Queue
+         * @description Pending review items the current user's role may decide.
+         */
+        get: operations["review_queue_api_v1_reviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{approval_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Review
+         * @description Approve or reject one item; returns the updated queue.
+         */
+        post: operations["decide_review_api_v1_reviews__approval_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dev/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Demo Users */
+        get: operations["demo_users_api_v1_dev_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ApprovalRead
+         * @description One review of a request, as the requester sees it.
+         */
+        ApprovalRead: {
+            /** Required Role */
+            required_role: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "PENDING" | "APPROVED" | "REJECTED";
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Comment */
+            comment: string | null;
+        };
         /** ClarificationAnswer */
         ClarificationAnswer: {
             /**
@@ -101,6 +194,15 @@ export interface components {
             /** Answered At */
             answered_at: string | null;
         };
+        /** CurrentUserRead */
+        CurrentUserRead: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Role */
+            role: string;
+        };
         /**
          * DecisionRead
          * @description The latest policy engine result. Produced by code, never by the AI.
@@ -115,6 +217,11 @@ export interface components {
             policy_version: string | null;
             /** Evaluated At */
             evaluated_at: string;
+        };
+        /** DemoUsers */
+        DemoUsers: {
+            /** Users */
+            users: components["schemas"]["CurrentUserRead"][];
         };
         /**
          * ExtractionStatus
@@ -201,6 +308,11 @@ export interface components {
              * @default 2
              */
             max_clarification_rounds: number;
+            /**
+             * Approvals
+             * @default []
+             */
+            approvals: components["schemas"]["ApprovalRead"][];
         };
         /** RequestList */
         RequestList: {
@@ -229,6 +341,62 @@ export interface components {
             submitted_at: string;
             outcome?: components["schemas"]["PolicyOutcome"] | null;
             proposed_priority?: components["schemas"]["Priority"] | null;
+        };
+        /** ReviewDecisionIn */
+        ReviewDecisionIn: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "APPROVED" | "REJECTED";
+            /**
+             * Comment
+             * @description Required when rejecting.
+             */
+            comment?: string | null;
+        };
+        /** ReviewItem */
+        ReviewItem: {
+            /**
+             * Approval Id
+             * Format: uuid
+             */
+            approval_id: string;
+            /** Required Role */
+            required_role: string;
+            /**
+             * Request Id
+             * Format: uuid
+             */
+            request_id: string;
+            status: components["schemas"]["RequestStatus"];
+            /** Message */
+            message: string;
+            /** Submitted At */
+            submitted_at: string;
+            /** Requester Name */
+            requester_name: string;
+            /** Item Description */
+            item_description: string | null;
+            /** Quantity */
+            quantity: number | null;
+            /** Estimated Total */
+            estimated_total: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Triggered Rules */
+            triggered_rules: components["schemas"]["RuleRead"][];
+            /** Approve Blocked Reason */
+            approve_blocked_reason: string | null;
+            /** Is Own Request */
+            is_own_request: boolean;
+        };
+        /** ReviewQueue */
+        ReviewQueue: {
+            /** Items */
+            items: components["schemas"]["ReviewItem"][];
         };
         /** RuleRead */
         RuleRead: {
@@ -290,7 +458,9 @@ export interface operations {
                 limit?: number;
                 offset?: number;
             };
-            header?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -319,7 +489,9 @@ export interface operations {
     create_request_api_v1_requests_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -352,7 +524,9 @@ export interface operations {
     read_request_api_v1_requests__request_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
             path: {
                 request_id: string;
             };
@@ -383,7 +557,9 @@ export interface operations {
     answer_request_clarification_api_v1_requests__request_id__clarifications_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
             path: {
                 request_id: string;
             };
@@ -402,6 +578,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_queue_api_v1_reviews_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_review_api_v1_reviews__approval_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueue"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_api_v1_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    demo_users_api_v1_dev_users_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-demo-user"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoUsers"];
                 };
             };
             /** @description Validation Error */

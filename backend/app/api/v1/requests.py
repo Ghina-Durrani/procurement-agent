@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, status
 from app.api.deps import CurrentUser, DbSession, IntakeAI
 from app.models import ProcurementRequest
 from app.schemas.requests import (
+    ApprovalRead,
     ClarificationAnswer,
     RequestCreate,
     RequestDetail,
@@ -14,6 +15,7 @@ from app.schemas.requests import (
     RequestSummary,
 )
 from app.services.intake.clarification import answer_clarification, rounds_of
+from app.services.review.service import approvals_of
 from app.services.intake.service import (
     get_own_request,
     latest_evaluations,
@@ -28,7 +30,11 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 def _detail(db: DbSession, user: CurrentUser, request: ProcurementRequest) -> RequestDetail:
     evaluation = latest_evaluations(db, user, [request.id]).get(request.id)
     return RequestDetail.from_records(
-        request, latest_extraction(db, request), evaluation, rounds_of(db, request)
+        request,
+        latest_extraction(db, request),
+        evaluation,
+        rounds_of(db, request),
+        [ApprovalRead.from_row(a, d) for a, d in approvals_of(db, request)],
     )
 
 
