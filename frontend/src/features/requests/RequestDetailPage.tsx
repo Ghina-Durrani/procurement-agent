@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ClarificationPanel } from './components/ClarificationPanel'
 import { DecisionPanel } from './components/DecisionPanel'
 import { FieldTable } from './components/FieldTable'
 import { useRequest } from './hooks'
@@ -37,6 +38,7 @@ export function RequestDetailPage() {
             </p>
           </section>
           <DecisionPanel request={request.data} />
+          {request.data.clarifications.length > 0 && <ClarificationPanel request={request.data} />}
           {request.data.fields.length > 0 && !nothingRead(request.data.status) && (
             <section aria-labelledby="fields-heading" className="flex flex-col gap-2">
               <h2 id="fields-heading" className="text-lg font-semibold">

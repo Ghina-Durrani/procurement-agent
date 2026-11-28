@@ -30,6 +30,13 @@ class NotFound(AppError):
     code = "NOT_FOUND"
 
 
+class Conflict(AppError):
+    # The record exists but is not in a state that allows this action (for example, a
+    # clarification answer for a request that is not waiting for one).
+    status_code = 409
+    code = "CONFLICT"
+
+
 class Unauthenticated(AppError):
     status_code = 401
     code = "UNAUTHENTICATED"
@@ -39,7 +46,7 @@ def error_body(code: str, message: str, field_errors: dict[str, str] | None = No
     return {"code": code, "message": message, "field_errors": field_errors}
 
 
-_HTTP_CODES = {401: "UNAUTHENTICATED", 403: "FORBIDDEN", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
+_HTTP_CODES = {401: "UNAUTHENTICATED", 403: "FORBIDDEN", 404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED", 409: "CONFLICT"}
 
 
 def _field_name(location: tuple[Any, ...]) -> str:

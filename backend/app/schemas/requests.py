@@ -10,9 +10,10 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from app.config import get_settings
-from app.models import Extraction, PolicyEvaluation, ProcurementRequest
+from app.models import Clarification, Extraction, PolicyEvaluation, ProcurementRequest
 from app.models.enums import ExtractionStatus, PolicyOutcome, Priority, RequestStatus
 from app.services.extraction.schemas import EXTRACTED_FIELDS
+from app.services.intake.clarification import MAX_ANSWER_CHARS, MAX_ROUNDS
 
 
 def _utc(value: datetime) -> str:
@@ -35,6 +36,52 @@ class RequestCreate(BaseModel):
         if len(value) > limit:
             raise ValueError(f"The message is too long (maximum {limit} characters).")
         return value  # kept exactly as written; the original is never edited (D-041)
+
+
+class ClarificationAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = Field(description="The requester's answer to the open questions. Untrusted text.")
+
+    @field_validator("answer")
+    @classmethod
+    def _check_answer(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Write your answer.")
+        if len(value) > MAX_ANSWER_CHARS:
+            raise ValueError(f"The answer is too long (maximum {MAX_ANSWER_CHARS} characters).")
+        return value  # kept exactly as written
+
+
+class QuestionRead(BaseModel):
+    field: str
+    question: str  # fixed system text, never written by the AI
+
+
+class ClarificationRead(BaseModel):
+    round_number: int
+    questions: list[QuestionRead]
+    answer: str | None
+    asked_at: datetime
+    answered_at: datetime | None
+
+    @field_serializer("asked_at")
+    def _asked_at(self, value: datetime) -> str:
+        return _utc(value)
+
+    @field_serializer("answered_at")
+    def _answered_at(self, value: datetime | None) -> str | None:
+        return _utc(value) if value is not None else None
+
+    @classmethod
+    def from_row(cls, row: Clarification) -> "ClarificationRead":
+        return cls(
+            round_number=row.round_number,
+            questions=[QuestionRead.model_validate(q) for q in row.questions],
+            answer=row.answer_text,
+            asked_at=row.asked_at,
+            answered_at=row.answered_at,
+        )
 
 
 class RuleRead(BaseModel):
@@ -109,6 +156,10 @@ class RequestDetail(RequestSummary):
     # Which AI read the request, so a fake development answer is never taken for a real one.
     read_by: str | None = None
     decision: DecisionRead | None = None
+    # Every clarification round, oldest first; the last one is open while status is
+    # NEEDS_CLARIFICATION and its answer is null.
+    clarifications: list[ClarificationRead] = []
+    max_clarification_rounds: int = MAX_ROUNDS
 
     @classmethod
     def from_records(
@@ -116,6 +167,7 @@ class RequestDetail(RequestSummary):
         request: ProcurementRequest,
         extraction: Extraction | None,
         evaluation: PolicyEvaluation | None,
+        clarifications: list[Clarification] | None = None,
     ) -> "RequestDetail":
         summary = RequestSummary.from_rows(request, evaluation)
         return cls(
@@ -125,6 +177,7 @@ class RequestDetail(RequestSummary):
             fields=_fields(extraction),
             read_by=extraction.model_name if extraction is not None else None,
             decision=DecisionRead.from_row(evaluation) if evaluation is not None else None,
+            clarifications=[ClarificationRead.from_row(row) for row in clarifications or []],
         )
 
 

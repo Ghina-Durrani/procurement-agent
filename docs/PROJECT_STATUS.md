@@ -32,7 +32,7 @@ employee submits a request in a minimal React form → API receives it → datab
 | 2 | Environment baseline | Done | Backend and frontend checks pass; backend reaches PostgreSQL in tests. `docker compose up` was not run in the sandbox |
 | 3 | Minimal data/API vertical slice | **Done (first slice)** | Tasks 1 to 4: React form → API → database → extraction (fake or live AI) → evidence checks → policy engine → decision and reasons saved → status page. Tried in a real browser on 2026-11-26 |
 | 4 | Deterministic policy engine | Done | `backend/app/policy/`, 125 tests; not yet called by any app workflow |
-| 5 | Extraction interface and provider | Done, integrated | Used by the app since slice task 3 (D-059). Clarification loop not built |
+| 5 | Extraction interface and provider | Done, integrated | Used by the app since slice task 3 (D-059). Clarification loop built 2026-11-28 (D-064), tested with the scripted fake AI only |
 | 6 | Human review and audit | Not started | Tables exist (`approvals`, `audit_events`); no logic |
 | 7 | Minimal UI | In progress | Employee screens: my requests, new request, request details (slice tasks 2 and 4). No reviewer screens |
 | 8 | Evaluation: System A vs System B | In progress | Dev run 1 done; challenge run in progress; final 50-case run waits until near the end (D-057) |
@@ -56,6 +56,7 @@ employee submits a request in a minimal React form → API receives it → datab
 | Request intake API (slice task 1): `POST /api/v1/requests` (201, original text saved unchanged, status `RECEIVED`, one `REQUEST_RECEIVED` audit event in the same transaction), `GET /api/v1/requests/{id}` and `GET /api/v1/requests` (own requests only, `{items, total}`); standard error envelope for every error; development-only current user (D-058) and demo seed command | branch (`app/api/`, `app/core/errors.py`, `app/schemas/`, `app/services/intake/`) | 19 (`tests/api`, need PostgreSQL) + 4 (`tests/test_errors.py`) | Cross-company and colleague reads give 404; client cannot set organization, requester or status. Also run against a live server on 2026-11-24. No AI call yet |
 | Processing in the app (slice task 3): after saving, the System B pipeline runs (one extraction call, evidence checks, priority, company facts from the database, policy engine) and saves the extraction, the policy evaluation with its exact input, the request columns, the status and two audit events; failures save a fail-closed decision. `EXTRACTION_MODE` fake (default, no tokens) or live (D-059) | branch (`app/services/intake/processing.py`, `company_facts.py`, `llm.py`) | 11 (`tests/api/test_request_processing.py`) + 6 (`tests/test_intake_llm.py`) | Tested outcomes: CONTINUE, missing amount, blocked supplier, manager approval, AI failure, no settings (no AI call), no budget, instructions in text, other company's supplier list. The AI is always a scripted fake in tests |
 | Employee screens (slice tasks 2 and 4): `features/requests` with my requests, new request (React Hook Form + zod) and request details (decision with `PolicyOutcomeBadge`, reasons, missing details, what was read, which AI read it); React Query and react-router set up in `App.tsx`; API types generated from the real OpenAPI schema; `api-client.ts` reads the error envelope (Q-002); CORS (D-060) | branch (`frontend/src/features/requests/`, `src/types/api.generated.ts`) | 17 frontend tests (MSW; an unmocked request fails the test) | All untrusted text is rendered as plain text (tested). Checked against a live backend from the dev origin, and tried in a real browser on Maira's laptop (2026-11-26) |
+| Clarification loop (D-064): fixed questions for the fields POL-001 reports, at most 2 rounds, then human review; `POST /api/v1/requests/{id}/clarifications`; re-extraction on the original plus answers; follow-up questions and answer form on the request details page | branch (`app/services/intake/clarification.py`, `features/requests/components/ClarificationPanel.tsx`) | 15 (`tests/api/test_clarification.py`, need PostgreSQL) + 5 frontend (`clarification.test.tsx`) | Scripted fake AI only. Tried against a running API in fake mode: questions saved, answer saved, then fail-closed `NEEDS_VERIFICATION` (expected, D-064 known limit). Not yet run with live Groq |
 | Frontend scaffold: React 19, Vite 8, TS strict, Tailwind 4, shadcn/ui base components, `PolicyOutcomeBadge`, `apiRequest` client, lint and format rules | `main` | 3 | Checks re-run 2026-11-24 |
 
 ### 3.2 Implemented but not integrated
@@ -63,7 +64,7 @@ employee submits a request in a minimal React form → API receives it → datab
 Each part below works and is tested **on its own**. No application workflow connects them yet.
 
 - **Live AI in the app:** built and tested only through its fail-closed path (no key). Not yet run against real Groq from the app; do that only when the token allowance is free.
-- **Schema tables for later steps:** clarifications, approvals, quotations, purchase orders and the rest exist but no app code uses them yet.
+- **Schema tables for later steps:** approvals, quotations, purchase orders and the rest exist but no app code uses them yet.
 
 ### 3.3 In progress
 
@@ -75,7 +76,6 @@ Each part below works and is tested **on its own**. No application workflow conn
 ### 3.4 Not started
 
 - Real login (D-011); today only the development stand-in exists (D-058).
-- Clarification workflow, at most two rounds (D-029).
 - Human review queue and approvals (separate from clarification), with role checks.
 - Authentication and role-based access (D-011, Q-004).
 - Audit event recording by the application.
@@ -147,12 +147,13 @@ The dev cases did not separate the two systems on decisions. That is a finding, 
 
 ## 8. Next milestone
 
-**Next, in order:** (1) **step 5, first extension: clarification** (at most 2 rounds, D-029), built in fake mode: a request in `NEEDS_CLARIFICATION` asks the employee for the missing details, re-runs extraction and the policy engine, and after 2 rounds goes to human review; (2) the post-fix System B challenge run when Groq allows (development data); (3) review queue (`AWAITING_APPROVAL`), audit history and request states. Proposed, not decided: growing the final test set beyond 50 cases (discuss its cost first: labels to verify and Groq tokens).
+**Next, in order:** (1) ~~clarification~~ built 2026-11-28 (D-064), needs one live Groq try; (2) the post-fix System B challenge run when Groq allows (development data); (3) review queue (`AWAITING_APPROVAL`), audit history and request states. Proposed, not decided: growing the final test set beyond 50 cases (discuss its cost first: labels to verify and Groq tokens).
 
 ## 9. Change log (newest first; one line per merged task)
 
 | Date | Who | Change |
 |---|---|---|
+| 2026-11-28 | Haya (with Claude) | Clarification loop (D-064): questions from POL-001's fields, answer endpoint, re-run on original plus answers, max 2 rounds then human review, answer form on the details page. Backend 723 pass (15 new), frontend 24 pass (5 new); typecheck, lint, format, build clean |
 | 2026-11-26 | Maira Qazi | D-063: invoice/payment company → supplier conflict with both names (closes Q-010), amounts in words accepted as evidence, supplier corrections and open alternatives in the shared field rules; tested through the web app path including ordinary requests; 27 tests added (708 pass). Live confirmation deferred (Groq allowance) |
 | 2026-11-26 | Maira Qazi | Challenge run 1 recorded for both systems on the same baseline (`evaluation/results/challenge-run-1-*`), with the side-by-side analysis; findings 13 and 14 marked fixed (D-062); CH-032 opened as Q-010; next steps written down for whoever continues |
 | 2026-11-26 | Maira Qazi | Findings 13 and 14 fixed in System B and the app (D-062): price mismatch and blocked supplier among alternatives now go to human review with a clear reason; both reproduced first in local tests with the model's saved answers. Pre-fix baseline tagged `challenge-baseline-2026-11-26`. System A challenge run completed. 20 tests added (681 pass) |

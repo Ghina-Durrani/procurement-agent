@@ -6,7 +6,14 @@ from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentUser, DbSession, IntakeAI
 from app.models import ProcurementRequest
-from app.schemas.requests import RequestCreate, RequestDetail, RequestList, RequestSummary
+from app.schemas.requests import (
+    ClarificationAnswer,
+    RequestCreate,
+    RequestDetail,
+    RequestList,
+    RequestSummary,
+)
+from app.services.intake.clarification import answer_clarification, rounds_of
 from app.services.intake.service import (
     get_own_request,
     latest_evaluations,
@@ -20,7 +27,9 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 
 def _detail(db: DbSession, user: CurrentUser, request: ProcurementRequest) -> RequestDetail:
     evaluation = latest_evaluations(db, user, [request.id]).get(request.id)
-    return RequestDetail.from_records(request, latest_extraction(db, request), evaluation)
+    return RequestDetail.from_records(
+        request, latest_extraction(db, request), evaluation, rounds_of(db, request)
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=RequestDetail)
@@ -48,3 +57,15 @@ def list_requests(
 @router.get("/{request_id}", response_model=RequestDetail)
 def read_request(request_id: uuid.UUID, db: DbSession, user: CurrentUser) -> RequestDetail:
     return _detail(db, user, get_own_request(db, user, request_id))
+
+
+@router.post("/{request_id}/clarifications", response_model=RequestDetail)
+def answer_request_clarification(
+    request_id: uuid.UUID,
+    body: ClarificationAnswer,
+    db: DbSession,
+    user: CurrentUser,
+    ai: IntakeAI,
+) -> RequestDetail:
+    """The requester answers the open questions; the request is processed again (D-064)."""
+    return _detail(db, user, answer_clarification(db, user, request_id, body.answer, ai))

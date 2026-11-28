@@ -20,6 +20,7 @@ from app.policy import (
     PolicyOutcome,
     PolicyResult,
     evaluate,
+    rules,
 )
 from app.services.extraction import (
     REQUEST_COLUMN_FOR_FIELD,
@@ -32,7 +33,7 @@ from app.services.extraction import (
 )
 from app.services.urgency import propose_priority
 
-from . import company_facts
+from . import clarification, company_facts
 from .llm import IntakeLLM
 
 log = logging.getLogger(__name__)
@@ -41,8 +42,9 @@ log = logging.getLogger(__name__)
 _COLUMN_LIMITS = {"unit": 30, "currency": 3, "category": 100, "supplier_name": 200}
 
 
-def status_for(result: PolicyResult, nothing_read: bool) -> RequestStatus:
-    """Where the request goes next (D-059). Only CONTINUE moves it forward without a person."""
+def status_for(result: PolicyResult, nothing_read: bool, can_ask: bool = True) -> RequestStatus:
+    """Where the request goes next (D-059, D-064). Only CONTINUE moves it forward without a
+    person. `can_ask` is False once the clarification rounds are used up."""
     rule_ids = set(result.triggered_rule_ids)
     if result.outcome is PolicyOutcome.BLOCK:
         return RequestStatus.BLOCKED
@@ -52,8 +54,9 @@ def status_for(result: PolicyResult, nothing_read: bool) -> RequestStatus:
         # The AI call failed or its answer was unusable. Asking the employee for "missing"
         # details would mislead: they may well have written them. A person checks instead.
         return RequestStatus.NEEDS_VERIFICATION
-    if "POL-001" in rule_ids:  # the requester must add details (clarification, later slice)
+    if "POL-001" in rule_ids and can_ask:  # the requester is asked for the missing details
         return RequestStatus.NEEDS_CLARIFICATION
+    # Includes POL-001 after the last round: a person decides instead of asking again.
     return RequestStatus.AWAITING_APPROVAL  # a person must review (review queue, later slice)
 
 
@@ -75,12 +78,16 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
         return
     config, config_id = policy
 
+    # The original text plus any answered clarification rounds (the original is never edited).
+    text = clarification.text_for_extraction(
+        request.raw_message, clarification.rounds_of(db, request)
+    )
     extraction = extract_request(
-        request.raw_message,
+        text,
         llm.client,
         categories=known_categories(config),
         required_fields=config.fields_to_collect(),
-        max_chars=len(request.raw_message) + 1,  # the API already enforced the length limit
+        max_chars=len(text) + 1,  # the API already enforced the length limits
     )
     submitted_on = request.submitted_at.date()
     proposal = propose_priority(extraction.urgency.level, extraction.delivery_deadline, submitted_on)
@@ -100,7 +107,7 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
         proposed_priority=proposal.priority,
         recent_requests=company_facts.recent_requests(db, request, config.split_window_days),
         blocked_suppliers_in_text=names_in_text(
-            request.raw_message, company_facts.blocked_supplier_names(db, request.organization_id)
+            text, company_facts.blocked_supplier_names(db, request.organization_id)
         ),
     )
     result = evaluate(policy_input, config)
@@ -128,7 +135,17 @@ def _process(db: Session, request: ProcurementRequest, llm: IntakeLLM) -> None:
     request.extraction_status = extraction.status
     request.missing_fields = list(extraction.missing_fields)
     nothing_read = _nothing_read(extraction)
-    _save_decision(db, request, policy_input, result, config_id, nothing_read=nothing_read)
+    can_ask = request.clarification_round < clarification.MAX_ROUNDS
+    _save_decision(
+        db, request, policy_input, result, config_id, nothing_read=nothing_read, can_ask=can_ask
+    )
+    if request.status is RequestStatus.NEEDS_CLARIFICATION:
+        clarification.ask(
+            db,
+            request,
+            rules.missing_required_fields(policy_input, config),
+            dict(extraction.field_conflicts),
+        )
     _audit(
         db,
         request,
@@ -164,9 +181,10 @@ def _save_decision(
     config_id: Any,
     nothing_read: bool,
     note: str | None = None,
+    can_ask: bool = True,
 ) -> None:
     previous = request.status
-    request.status = status_for(result, nothing_read)
+    request.status = status_for(result, nothing_read, can_ask)
     if request.status is RequestStatus.APPROVED:
         # No approval was needed, so policy cleared the requester's own estimate (POL-002).
         request.approved_amount = policy_input.estimated_total
@@ -181,6 +199,10 @@ def _save_decision(
             policy_version=result.policy_version,
             policy_config_id=config_id,
             input_snapshot=policy_input.model_dump(mode="json"),
+            # The real time of this insert. now() is fixed for a whole transaction, so two
+            # evaluations of one request in one transaction would otherwise tie, and the
+            # "latest decision" shown to the employee could be the older one.
+            created_at=func.clock_timestamp(),
         )
     )
     details: dict[str, Any] = {

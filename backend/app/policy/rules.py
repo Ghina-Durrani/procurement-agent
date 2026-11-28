@@ -107,9 +107,18 @@ def _required_now(data: PolicyInput, config: PolicyConfig) -> list[str]:
     return required
 
 
+def missing_required_fields(data: PolicyInput, config: PolicyConfig) -> list[str]:
+    """The required details POL-001 reports as missing or conflicting, in config order.
+
+    Public so the clarification step asks the requester about exactly these fields and no
+    others; the engine stays the only place that decides what is required.
+    """
+    return [field for field in _required_now(data, config) if field in data.missing_fields]
+
+
 def completeness(data: PolicyInput, config: PolicyConfig) -> list[TriggeredRule]:
     """POL-001: required details still missing after the clarification loop."""
-    missing = [field for field in _required_now(data, config) if field in data.missing_fields]
+    missing = missing_required_fields(data, config)
     if not missing:
         return []
     unclear = [field for field in missing if field not in data.field_conflicts]

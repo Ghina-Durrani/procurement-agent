@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApiError } from '@/lib/api-client'
 import {
+  answerClarification,
   getRequest,
   listRequests,
   submitRequest,
@@ -30,6 +31,18 @@ export function useSubmitRequest() {
     mutationFn: submitRequest,
     onSuccess: (created) => {
       queryClient.setQueryData(requestKeys.one(created.id), created)
+      void queryClient.invalidateQueries({ queryKey: requestKeys.all, exact: true })
+    },
+  })
+}
+
+export function useAnswerClarification(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation<RequestDetail, ApiError, string>({
+    mutationFn: (answer) => answerClarification(id, answer),
+    onSuccess: (updated) => {
+      // The response is the request after it was processed again: show it right away.
+      queryClient.setQueryData(requestKeys.one(id), updated)
       void queryClient.invalidateQueries({ queryKey: requestKeys.all, exact: true })
     },
   })

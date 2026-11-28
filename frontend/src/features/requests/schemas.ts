@@ -14,3 +14,18 @@ export const requestFormSchema = z.object({
 })
 
 export type RequestFormValues = z.infer<typeof requestFormSchema>
+
+/** Mirrors the backend MAX_ANSWER_CHARS; the server stays the authority. */
+export const MAX_ANSWER_CHARS = 1000
+
+export const answerFormSchema = z.object({
+  answer: z
+    .string()
+    .refine((value) => value.trim().length > 0, 'Write your answer.')
+    .refine(
+      (value) => value.length <= MAX_ANSWER_CHARS,
+      `The answer is too long (maximum ${MAX_ANSWER_CHARS} characters).`,
+    ),
+})
+
+export type AnswerFormValues = z.infer<typeof answerFormSchema>

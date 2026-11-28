@@ -5,7 +5,7 @@ export const STATUS_TEXT: Record<RequestStatus, { label: string; next: string }>
   RECEIVED: { label: 'Received', next: 'The request is being checked.' },
   NEEDS_CLARIFICATION: {
     label: 'Needs more details',
-    next: 'Some required details are missing. Answering follow-up questions here comes in a later step.',
+    next: 'Some required details are missing. Answer the questions below to continue.',
   },
   NEEDS_VERIFICATION: {
     label: 'Being verified',

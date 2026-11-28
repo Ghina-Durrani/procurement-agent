@@ -33,6 +33,21 @@ export function aRequest(changes: Partial<RequestDetail> = {}): RequestDetail {
       policy_version: 'demo-2026-11-05.1',
       evaluated_at: '2026-11-24T10:00:01Z',
     },
+    clarifications: [
+      {
+        round_number: 1,
+        questions: [
+          {
+            field: 'estimated_total',
+            question: 'What is the estimated total cost of the whole request?',
+          },
+        ],
+        answer: null,
+        asked_at: '2026-11-24T10:00:01Z',
+        answered_at: null,
+      },
+    ],
+    max_clarification_rounds: 2,
     ...changes,
   }
 }

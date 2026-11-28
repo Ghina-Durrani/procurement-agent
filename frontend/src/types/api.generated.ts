@@ -56,10 +56,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/requests/{request_id}/clarifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Request Clarification
+         * @description The requester answers the open questions; the request is processed again (D-064).
+         */
+        post: operations["answer_request_clarification_api_v1_requests__request_id__clarifications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ClarificationAnswer */
+        ClarificationAnswer: {
+            /**
+             * Answer
+             * @description The requester's answer to the open questions. Untrusted text.
+             */
+            answer: string;
+        };
+        /** ClarificationRead */
+        ClarificationRead: {
+            /** Round Number */
+            round_number: number;
+            /** Questions */
+            questions: components["schemas"]["QuestionRead"][];
+            /** Answer */
+            answer: string | null;
+            /** Asked At */
+            asked_at: string;
+            /** Answered At */
+            answered_at: string | null;
+        };
         /**
          * DecisionRead
          * @description The latest policy engine result. Produced by code, never by the AI.
@@ -107,6 +148,13 @@ export interface components {
          * @enum {string}
          */
         Priority: "NORMAL" | "HIGH_PRIORITY" | "EMERGENCY";
+        /** QuestionRead */
+        QuestionRead: {
+            /** Field */
+            field: string;
+            /** Question */
+            question: string;
+        };
         /** RequestCreate */
         RequestCreate: {
             /**
@@ -143,6 +191,16 @@ export interface components {
             /** Read By */
             read_by?: string | null;
             decision?: components["schemas"]["DecisionRead"] | null;
+            /**
+             * Clarifications
+             * @default []
+             */
+            clarifications: components["schemas"]["ClarificationRead"][];
+            /**
+             * Max Clarification Rounds
+             * @default 2
+             */
+            max_clarification_rounds: number;
         };
         /** RequestList */
         RequestList: {
@@ -301,6 +359,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequestDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_request_clarification_api_v1_requests__request_id__clarifications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationAnswer"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
