@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { setDemoUser } from '@/lib/api-client'
+import { useEffect } from 'react'
+import { type ApiError, getDemoUser, setDemoUser } from '@/lib/api-client'
 import { getDemoUsers, getMe } from './api'
 
 /**
@@ -10,12 +11,25 @@ export function UserSwitcher() {
   const queryClient = useQueryClient()
   const me = useQuery({ queryKey: ['me'], queryFn: getMe })
   const users = useQuery({ queryKey: ['demo-users'], queryFn: getDemoUsers })
+
+  // A saved user that no longer exists (for example after the database was reset) would
+  // lock every page out. Forget it and go back to the default demo user.
+  const savedUserRefused =
+    (me.error as ApiError | null)?.code === 'UNAUTHENTICATED' && getDemoUser() !== null
+  useEffect(() => {
+    if (savedUserRefused) {
+      setDemoUser(null)
+      void queryClient.resetQueries()
+    }
+  }, [savedUserRefused, queryClient])
+
   if (!me.isSuccess || !users.isSuccess) return null
 
   const onChange = (email: string) => {
     setDemoUser(email)
-    // Everything cached belongs to the previous user.
-    queryClient.clear()
+    // Every cached answer belongs to the previous user: reset the cache AND fetch again
+    // everything on screen (clear() alone removed the data without fetching it again).
+    void queryClient.resetQueries()
   }
 
   return (
